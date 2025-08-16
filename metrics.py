@@ -129,9 +129,9 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
             week_data = df[df['week_start'] == week]
             
             result.append(f"📅 Неделя: {week}")
-            result.append("-" * 70)
+            result.append("-" * 75)
             result.append("Канал       Подач Отв Скр Онс Офф Рдж  CVR1 CVR2 CVR3 CVR4")
-            result.append("-" * 70)
+            result.append("-" * 75)
             
             total_apps = 0
             total_responses = 0
@@ -158,7 +158,7 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
                 total_offers += off
                 total_rejections += rej
                 
-                line = f"{channel} {apps:5} {resp:3} {scr:3} {ons:3} {off:3} {rej:3}  {metrics['cvr1']:<4} {metrics['cvr2']:<4} {metrics['cvr3']:<4} {metrics['cvr4']:<4}"
+                line = f"{channel} {apps:5} {resp:3} {scr:3} {ons:3} {off:3} {rej:3}  {metrics['cvr1']:<4} {metrics['cvr2']:<4} {metrics['cvr3']:<4} {metrics['cvr4']:<5}"
                 result.append(line)
             
             # Добавляем итоги по неделе
@@ -172,8 +172,8 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
                     'rejections': total_rejections
                 }, funnel_type)
                 
-                result.append("-" * 70)
-                total_line = f"{'ИТОГО':<10} {total_apps:5} {total_responses:3} {total_screenings:3} {total_onsites:3} {total_offers:3} {total_rejections:3}  {total_metrics['cvr1']:<4} {total_metrics['cvr2']:<4} {total_metrics['cvr3']:<4} {total_metrics['cvr4']:<4}"
+                result.append("-" * 75)
+                total_line = f"{'ИТОГО':<10} {total_apps:5} {total_responses:3} {total_screenings:3} {total_onsites:3} {total_offers:3} {total_rejections:3}  {total_metrics['cvr1']:<4} {total_metrics['cvr2']:<4} {total_metrics['cvr3']:<4} {total_metrics['cvr4']:<5}"
                 result.append(total_line)
             
             result.append("")
@@ -185,9 +185,9 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
             week_data = df[df['week_start'] == week]
             
             result.append(f"📅 Неделя: {week}")
-            result.append("-" * 70)
+            result.append("-" * 75)
             result.append("Канал       Просм Вх Скр Онс Офф Рдж  CVR1 CVR2 CVR3 CVR4")
-            result.append("-" * 70)
+            result.append("-" * 75)
             
             total_views = 0
             total_incoming = 0
@@ -214,7 +214,7 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
                 total_offers += off
                 total_rejections += rej
                 
-                line = f"{channel} {views:5} {inc:2} {scr:3} {ons:3} {off:3} {rej:3}  {metrics['cvr1']:<4} {metrics['cvr2']:<4} {metrics['cvr3']:<4} {metrics['cvr4']:<4}"
+                line = f"{channel} {views:5} {inc:2} {scr:3} {ons:3} {off:3} {rej:3}  {metrics['cvr1']:<4} {metrics['cvr2']:<4} {metrics['cvr3']:<4} {metrics['cvr4']:<5}"
                 result.append(line)
             
             # Добавляем итоги по неделе
@@ -228,8 +228,8 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
                     'rejections': total_rejections
                 }, funnel_type)
                 
-                result.append("-" * 70)
-                total_line = f"{'ИТОГО':<10} {total_views:5} {total_incoming:2} {total_screenings:3} {total_onsites:3} {total_offers:3} {total_rejections:3}  {total_metrics['cvr1']:<4} {total_metrics['cvr2']:<4} {total_metrics['cvr3']:<4} {total_metrics['cvr4']:<4}"
+                result.append("-" * 75)
+                total_line = f"{'ИТОГО':<10} {total_views:5} {total_incoming:2} {total_screenings:3} {total_onsites:3} {total_offers:3} {total_rejections:3}  {total_metrics['cvr1']:<4} {total_metrics['cvr2']:<4} {total_metrics['cvr3']:<4} {total_metrics['cvr4']:<5}"
                 result.append(total_line)
             
             result.append("")
