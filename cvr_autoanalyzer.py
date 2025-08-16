@@ -291,12 +291,13 @@ class CVRAutoAnalyzer:
             return profile.get('linkedin')
         return None
     
-    def generate_recommendations_prompt(self, chatgpt_data: Dict[str, any]) -> str:
+    def generate_recommendations_prompt(self, chatgpt_data: Dict[str, any], user_id: int = None) -> str:
         """
         Генерирует промпт для ChatGPT на основе данных анализа
         
         Args:
             chatgpt_data: Подготовленные данные для анализа
+            user_id: ID пользователя (опционально, для получения LinkedIn)
             
         Returns:
             Строка с промптом для ChatGPT
@@ -316,7 +317,7 @@ class CVRAutoAnalyzer:
 • Тип воронки: {"Активный поиск (подает заявки)" if profile['funnel_type'] == 'active' else "Пассивный поиск (находят его)"}"""
         
         # Добавляем LinkedIn, если указан
-        linkedin_url = self._get_linkedin_from_profile(user_id)
+        linkedin_url = self._get_linkedin_from_profile(user_id) if user_id else profile.get('linkedin')
         if linkedin_url:
             prompt += f"""
 • LinkedIn: {linkedin_url}
@@ -378,7 +379,14 @@ class CVRAutoAnalyzer:
         try:
             client = AsyncOpenAI(api_key=OPENAI_API_KEY)
             
-            prompt = self.generate_recommendations_prompt(chatgpt_data)
+            # Извлекаем user_id из данных первой проблемы или используем None
+            user_id = None
+            if chatgpt_data.get("problems"):
+                user_data = chatgpt_data["problems"][0].get("user_data", {})
+                # user_id может быть в других местах, но для LinkedIn используем профиль
+                pass
+            
+            prompt = self.generate_recommendations_prompt(chatgpt_data, user_id)
             
             response = await client.chat.completions.create(
                 model=OPENAI_MODEL,
@@ -432,7 +440,7 @@ async def analyze_and_recommend_async(user_id: int, use_api: bool = True) -> Opt
     chatgpt_data = analyzer.prepare_chatgpt_data(user_id, analysis_result["problems"])
     
     # Шаг 3: Генерация промпта
-    prompt = analyzer.generate_recommendations_prompt(chatgpt_data)
+    prompt = analyzer.generate_recommendations_prompt(chatgpt_data, user_id)
     
     # Шаг 4: Попытка получить рекомендации через API
     ai_recommendations = None
