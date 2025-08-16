@@ -16,7 +16,15 @@ from metrics import calculate_cvr_metrics, format_metrics_table, format_history_
 from export import generate_csv_export
 from faq import get_faq_text
 from reminders import setup_reminders, send_reminder
-from profile import (ProfileStates, format_profile_display)
+from profile import (
+    ProfileStates, format_profile_display
+)
+from reflection import (
+    ReflectionStates, reflection_form, prompt_reflection_form, start_reflection_form,
+    process_stage_type, process_rejection_stage, process_rating, process_rejection_reasons,
+    process_motivation, process_strengths_text, process_weaknesses_text,
+    process_rejection_custom_text, cmd_log_event
+)
 import json
 from validators import parse_salary_string, parse_list_input, validate_superpowers
 from keyboards import get_level_keyboard, get_company_types_keyboard, get_skip_back_keyboard, get_back_keyboard, get_profile_actions_keyboard, get_profile_edit_fields_keyboard, get_confirm_delete_keyboard, get_final_review_keyboard
@@ -77,6 +85,11 @@ async def cmd_start(message: types.Message):
     ])
     
     await message.answer(welcome_text, reply_markup=keyboard)
+
+@dp.message(Command("log_event"))
+async def cmd_log_event_handler(message: types.Message, state: FSMContext):
+    """Manual reflection logging command"""
+    await cmd_log_event(message, state)
 
 @dp.message(Command("menu"))
 async def cmd_menu(message: types.Message):
@@ -471,6 +484,42 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
             [InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="main_menu")]
         ])
         await query.message.edit_text(faq_text, reply_markup=keyboard, parse_mode="HTML")
+    
+    # Reflection system callbacks
+    elif data == "reflection_start":
+        await start_reflection_form(query, state)
+    elif data == "reflection_decline":
+        await query.message.edit_text("Хорошо, вы можете заполнить форму позже через команду /log_event")
+    elif data.startswith("stage_"):
+        await process_stage_type(query, state)
+    elif data.startswith("rating_"):
+        if await state.get_state() == ReflectionStates.rating:
+            await process_rating(query, state)
+        elif await state.get_state() == ReflectionStates.motivation:
+            await process_motivation(query, state)
+    elif data.startswith("reject_"):
+        if data == "reject_after_screening" or data == "reject_after_onsite":
+            await process_rejection_stage(query, state)
+        else:
+            await process_rejection_reasons(query, state)
+    elif data == "reflection_manual":
+        await cmd_log_event(query.message, state)
+    elif data == "reflection_continue":
+        await start_reflection_form(query, state)
+    elif data == "reflection_finish":
+        await query.message.edit_text("✅ Сеанс заполнения форм завершен!")
+        await state.clear()
+    elif data == "reflection_skip":
+        # Handle skip button for optional text fields
+        current_state = await state.get_state()
+        if current_state == ReflectionStates.strengths:
+            await state.update_data(strengths=None)
+            from reflection import ask_motivation
+            await ask_motivation(query, state)
+        elif current_state == ReflectionStates.weaknesses:
+            await state.update_data(weaknesses=None)
+            from reflection import ask_motivation_from_text
+            await ask_motivation_from_text(query.message, state)
 
 async def show_channels_menu(user_id: int, message):
     """Показать меню управления каналами"""
@@ -711,6 +760,63 @@ async def process_week_data(message: types.Message, state: FSMContext):
         
         if success_count > 0:
             await message.answer(f"✅ Добавлено {success_count} записей за неделю {week_start}")
+            
+            # Trigger reflection form if counters increased
+            # Check if reflection should be prompted for each processed entry
+            for line in lines:
+                if ':' not in line:
+                    continue
+                    
+                parts = line.split(':', 1)
+                if len(parts) != 2:
+                    continue
+                    
+                channel = parts[0].strip()
+                values_str = parts[1].strip()
+                values = [int(x) for x in values_str.split()]
+                
+                if funnel_type == 'active' and len(values) == 6:
+                    new_data = {
+                        'applications': values[0],
+                        'responses': values[1],
+                        'screenings': values[2],
+                        'onsites': values[3],
+                        'offers': values[4],
+                        'rejections': values[5],
+                        'week_start': week_start,
+                        'channel': channel,
+                        'funnel_type': funnel_type
+                    }
+                    # Get old data for comparison
+                    old_data = get_week_data(user_id, week_start, channel, funnel_type)
+                    old_data_dict = dict(old_data) if old_data else {}
+                    
+                    # Prompt reflection if triggered
+                    if await prompt_reflection_form(message, user_id, old_data_dict, new_data):
+                        await state.clear()
+                        return
+                        
+                elif funnel_type == 'passive' and len(values) == 6:
+                    new_data = {
+                        'views': values[0],
+                        'incoming': values[1],
+                        'screenings': values[2],
+                        'onsites': values[3],
+                        'offers': values[4],
+                        'rejections': values[5],
+                        'week_start': week_start,
+                        'channel': channel,
+                        'funnel_type': funnel_type
+                    }
+                    # Get old data for comparison
+                    old_data = get_week_data(user_id, week_start, channel, funnel_type)
+                    old_data_dict = dict(old_data) if old_data else {}
+                    
+                    # Prompt reflection if triggered
+                    if await prompt_reflection_form(message, user_id, old_data_dict, new_data):
+                        await state.clear()
+                        return
+            
             await state.clear()
             # Показываем главное меню новым сообщением
             user_data = get_user_funnels(user_id)
@@ -856,13 +962,30 @@ async def process_rejections(message: types.Message, state: FSMContext):
                 'rejections': value
             }
         
-        # Сохраняем данные
+        # Get old data for reflection trigger
         channel = data.get('selected_channel')
+        old_data = get_week_data(user_id, week_start, channel, funnel_type)
+        old_data_dict = dict(old_data) if old_data else {}
+        
+        # Сохраняем данные
         add_week_data(user_id, week_start, channel, funnel_type, week_data)
         
         await message.answer(f"✅ Данные успешно сохранены для канала {channel} за неделю {week_start}!")
-        await state.clear()
         
+        # Prepare new data for reflection trigger
+        new_data = week_data.copy()
+        new_data.update({
+            'week_start': week_start,
+            'channel': channel,
+            'funnel_type': funnel_type
+        })
+        
+        # Check if reflection should be triggered
+        if await prompt_reflection_form(message, user_id, old_data_dict, new_data):
+            await state.clear()
+            return
+        
+        await state.clear()
         # Показываем главное меню
         await show_main_menu_new_message(user_id, message)
         
@@ -891,6 +1014,22 @@ async def process_edit_value(message: types.Message, state: FSMContext):
         
     except ValueError:
         await message.answer("❌ Введите число")
+
+# Reflection system text handlers
+@dp.message(ReflectionStates.strengths)
+async def process_strengths_handler(message: types.Message, state: FSMContext):
+    """Handle strengths text input"""
+    await process_strengths_text(message, state)
+
+@dp.message(ReflectionStates.weaknesses)
+async def process_weaknesses_handler(message: types.Message, state: FSMContext):
+    """Handle weaknesses text input"""
+    await process_weaknesses_text(message, state)
+
+@dp.message(ReflectionStates.rejection_custom)
+async def process_rejection_custom_handler(message: types.Message, state: FSMContext):
+    """Handle custom rejection reason text input"""
+    await process_rejection_custom_text(message, state)
 
 async def show_main_menu_new_message(user_id: int, message):
     """Показать главное меню новым сообщением"""

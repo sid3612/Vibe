@@ -33,6 +33,14 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
 - **Plain Text Profile Display**: Changed from styled card format to clean text messages with action buttons
 - **Regression Testing Suite**: Implemented comprehensive testing covering all critical functionality
 - **Bug Fixes Applied**: Fixed constraints field mapping and date calculation accuracy issues
+- **PRD v3.1 Auto-Reflection System**: Complete implementation of reflection form feature that auto-triggers after counter increases:
+  * Automatic trigger logic detecting counter increases (responses, screenings, onsites, offers, rejections)
+  * Multi-step reflection form wizard with stage type, rating, strengths/weaknesses, motivation, rejection reasons
+  * Reflection queue system for handling multiple events
+  * Database storage with complete reflection logs
+  * Manual reflection command /log_event for user-initiated event logging
+  * Integration with existing data input workflows (both bulk and step-by-step)
+  * UI components and keyboards for seamless user experience
 
 ## User Preferences
 
