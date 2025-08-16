@@ -27,16 +27,16 @@ def get_company_types_keyboard(selected: list = None):
         selected = []
     
     types = [
-        ("SMB", "company_smb"),
-        ("Scale-up", "company_scaleup"),
-        ("Enterprise", "company_enterprise"),
-        ("Consulting", "company_consulting"),
-        ("Своё", "company_custom")
+        ("SMB", "company_SMB"),
+        ("Scale-up", "company_Scale-up"),
+        ("Enterprise", "company_Enterprise"),
+        ("Consulting", "company_Consulting")
     ]
     
     keyboard_rows = []
     for name, callback in types:
-        text = f"✅ {name}" if callback.split('_')[1] in selected else name
+        company_name = callback.replace("company_", "")
+        text = f"✅ {name}" if company_name in selected else name
         keyboard_rows.append([InlineKeyboardButton(text=text, callback_data=callback)])
     
     keyboard_rows.append([

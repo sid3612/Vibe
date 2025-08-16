@@ -297,7 +297,8 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
     elif data == "create_profile":
         await query.message.edit_text(
             "📋 Мастер создания профиля\n\n"
-            "Введите вашу роль (например, Python Developer):"
+            "Роль — на какую позицию вы ищете работу:\n"
+            "Пример: Product Manager, Data Analyst"
         )
         await state.set_state(ProfileStates.role)
     
@@ -341,7 +342,7 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
                     "lead": "Lead"
                 }
                 await state.update_data(level=level_map[level_value])
-                await query.message.edit_text("Введите срок поиска в неделях (1-52):")
+                await query.message.edit_text("Срок — сколько недель планируете уделить активному поиску (1-52):\nПример: 12")
                 await state.set_state(ProfileStates.deadline_weeks)
         await query.answer()
     
@@ -967,7 +968,10 @@ async def process_profile_role(message: types.Message, state: FSMContext):
         return
     
     await state.update_data(role=role)
-    await message.answer("Введите вашу текущую локацию:")
+    await message.answer(
+        "Текущая локация — где вы живёте сейчас:\n"
+        "Пример: Лиссабон, Португалия"
+    )
     await state.set_state(ProfileStates.current_location)
 
 @dp.message(ProfileStates.current_location, F.text)
@@ -979,7 +983,10 @@ async def process_profile_current_location(message: types.Message, state: FSMCon
         return
     
     await state.update_data(current_location=location)
-    await message.answer("Введите локацию поиска работы:")
+    await message.answer(
+        "Локация поиска — где хотите найти работу (страна/remote):\n"
+        "Пример: Германия, remote-EU"
+    )
     await state.set_state(ProfileStates.target_location)
 
 @dp.message(ProfileStates.target_location, F.text)
@@ -991,7 +998,7 @@ async def process_profile_target_location(message: types.Message, state: FSMCont
         return
     
     await state.update_data(target_location=location)
-    await message.answer("Выберите ваш уровень:", reply_markup=get_level_keyboard())
+    await message.answer("Уровень — ваш профессиональный уровень:", reply_markup=get_level_keyboard())
     await state.set_state(ProfileStates.level)
 
 @dp.message(ProfileStates.level_custom, F.text)
@@ -1003,7 +1010,7 @@ async def process_profile_level_custom(message: types.Message, state: FSMContext
         return
     
     await state.update_data(level=level)
-    await message.answer("Введите срок поиска в неделях (1-52):")
+    await message.answer("Срок — сколько недель планируете уделить активному поиску (1-52):\nПример: 12")
     await state.set_state(ProfileStates.deadline_weeks)
 
 @dp.message(ProfileStates.deadline_weeks, F.text)
@@ -1029,9 +1036,8 @@ async def process_profile_deadline(message: types.Message, state: FSMContext):
 async def start_optional_fields_flow(message, state: FSMContext):
     """Start the optional fields collection"""
     await message.answer(
-        "Теперь добавим дополнительную информацию (все поля можно пропустить):\n\n"
-        "Введите синонимы вашей роли (до 4, через запятую):\n"
-        "Например: Backend Developer, Server Developer",
+        "Синонимы ролей — похожие названия, под которыми встречается ваша роль (до 4, через запятую):\n"
+        "Пример: Product Manager, Product Owner, Growth PM, Platform PM",
         reply_markup=get_skip_back_keyboard()
     )
     await state.set_state(ProfileStates.role_synonyms)
@@ -1039,7 +1045,9 @@ async def start_optional_fields_flow(message, state: FSMContext):
 async def start_salary_flow(message, state: FSMContext):
     """Start salary expectations collection"""
     await message.answer(
-        "Укажите минимальную зарплату (только число):",
+        "Диапазон ЗП — вилка зарплаты (min–max + валюта + период):\n"
+        "Введите в формате: 60000-70000 EUR/год\n"
+        "Пример: 5000-8000 USD/месяц",
         reply_markup=get_skip_back_keyboard()
     )
     await state.set_state(ProfileStates.salary_min)
@@ -1047,7 +1055,7 @@ async def start_salary_flow(message, state: FSMContext):
 async def start_company_types_flow(message, state: FSMContext):
     """Start company types selection"""
     await message.answer(
-        "Выберите типы компаний (можно выбрать несколько):",
+        "Типы компаний — где вы хотите работать (можно выбрать несколько):",
         reply_markup=get_company_types_keyboard()
     )
     await state.set_state(ProfileStates.company_types)
@@ -1055,8 +1063,8 @@ async def start_company_types_flow(message, state: FSMContext):
 async def start_industries_flow(message, state: FSMContext):
     """Start industries collection"""
     await message.answer(
-        "Укажите интересные индустрии (до 3, через запятую):\n"
-        "Например: Fintech, E-commerce, Healthtech",
+        "Индустрии — до 3 сфер, которые вам интересны (через запятую):\n"
+        "Пример: Fintech, SaaS, AI",
         reply_markup=get_skip_back_keyboard()
     )
     await state.set_state(ProfileStates.industries)
@@ -1064,8 +1072,8 @@ async def start_industries_flow(message, state: FSMContext):
 async def start_competencies_flow(message, state: FSMContext):
     """Start competencies collection"""
     await message.answer(
-        "Укажите ключевые компетенции (до 10, через запятую):\n"
-        "Например: Python, Django, PostgreSQL, Docker",
+        "Ключевые компетенции — до 10 основных навыков/областей (через запятую):\n"
+        "Пример: Product Discovery, Roadmapping, A/B-testing, Stakeholder Management",
         reply_markup=get_skip_back_keyboard()
     )
     await state.set_state(ProfileStates.competencies)
@@ -1073,8 +1081,8 @@ async def start_competencies_flow(message, state: FSMContext):
 async def start_superpowers_flow(message, state: FSMContext):
     """Start superpowers collection"""
     await message.answer(
-        "Опишите ваши суперсилы (3-5, через запятую):\n"
-        "Например: Быстрое обучение, Системное мышление, Лидерство",
+        "Карта суперсил — чем вы отличаетесь и как это приносит бизнесу выгоду (через запятую):\n"
+        "Пример: Сократил time-to-market на 40%, Увеличил retention на 20%",
         reply_markup=get_skip_back_keyboard()
     )
     await state.set_state(ProfileStates.superpowers)
@@ -1082,7 +1090,8 @@ async def start_superpowers_flow(message, state: FSMContext):
 async def start_constraints_flow(message, state: FSMContext):
     """Start constraints collection"""
     await message.answer(
-        "Укажите дополнительные ограничения или требования:",
+        "Дополнительные ограничения и рамки — ваши фильтры для поиска:\n"
+        "Пример: Remote only, Компания с релизами не реже раза в месяц",
         reply_markup=get_skip_back_keyboard()
     )
     await state.set_state(ProfileStates.constraints)
@@ -1104,12 +1113,12 @@ async def finish_profile_creation(message, state: FSMContext):
     # Add optional fields if present
     if data.get('role_synonyms'):
         profile_data['role_synonyms_json'] = json.dumps(data['role_synonyms'])
-    if data.get('salary_min'):
+    if data.get('salary_min') and data.get('salary_max'):
         profile_data.update({
             'salary_min': data['salary_min'],
             'salary_max': data['salary_max'], 
-            'salary_currency': data['salary_currency'],
-            'salary_period': data['salary_period']
+            'salary_currency': data.get('salary_currency', 'EUR'),
+            'salary_period': data.get('salary_period', 'год')
         })
     if data.get('company_types'):
         profile_data['company_types_json'] = json.dumps(data['company_types'])
@@ -1145,50 +1154,42 @@ async def process_role_synonyms(message: types.Message, state: FSMContext):
     await start_salary_flow(message, state)
 
 @dp.message(ProfileStates.salary_min, F.text)
-async def process_salary_min(message: types.Message, state: FSMContext):
-    """Process minimum salary"""
+async def process_salary(message: types.Message, state: FSMContext):
+    """Process salary range in single input"""
+    salary_text = message.text.strip()
+    
+    # Parse formats like "60000-70000 EUR/год" or "5000-8000 USD/месяц"
     try:
-        salary_min = float(message.text.strip())
-        await state.update_data(salary_min=salary_min)
-        await message.answer(
-            "Укажите максимальную зарплату:",
-            reply_markup=get_skip_back_keyboard()
-        )
-        await state.set_state(ProfileStates.salary_max)
-    except ValueError:
-        await message.answer("Введите число:")
-
-@dp.message(ProfileStates.salary_max, F.text)
-async def process_salary_max(message: types.Message, state: FSMContext):
-    """Process maximum salary"""
-    try:
-        salary_max = float(message.text.strip())
-        await state.update_data(salary_max=salary_max)
-        await message.answer(
-            "Валюта (USD, EUR, RUB):",
-            reply_markup=get_skip_back_keyboard()
-        )
-        await state.set_state(ProfileStates.salary_currency)
-    except ValueError:
-        await message.answer("Введите число:")
-
-@dp.message(ProfileStates.salary_currency, F.text)
-async def process_salary_currency(message: types.Message, state: FSMContext):
-    """Process salary currency"""
-    currency = message.text.strip().upper()
-    await state.update_data(salary_currency=currency)
-    await message.answer(
-        "Период (month/year):",
-        reply_markup=get_skip_back_keyboard()
-    )
-    await state.set_state(ProfileStates.salary_period)
-
-@dp.message(ProfileStates.salary_period, F.text)
-async def process_salary_period(message: types.Message, state: FSMContext):
-    """Process salary period"""
-    period = message.text.strip().lower()
-    await state.update_data(salary_period=period)
-    await start_company_types_flow(message, state)
+        # Extract min-max values
+        if '-' in salary_text:
+            parts = salary_text.split()
+            range_part = parts[0]
+            currency_period = ' '.join(parts[1:]) if len(parts) > 1 else 'EUR/год'
+            
+            min_val, max_val = range_part.split('-')
+            salary_min = float(min_val.strip())
+            salary_max = float(max_val.strip())
+            
+            # Extract currency and period
+            if '/' in currency_period:
+                currency, period = currency_period.split('/')
+                currency = currency.strip()
+                period = period.strip()
+            else:
+                currency = currency_period.strip() or 'EUR'
+                period = 'год'
+            
+            await state.update_data(
+                salary_min=salary_min,
+                salary_max=salary_max,
+                salary_currency=currency,
+                salary_period=period
+            )
+            await start_company_types_flow(message, state)
+        else:
+            await message.answer("Введите в формате: 60000-70000 EUR/год")
+    except (ValueError, IndexError):
+        await message.answer("Введите в формате: 60000-70000 EUR/год\nПример: 5000-8000 USD/месяц")
 
 # Company types callback handler  
 @dp.callback_query(ProfileStates.company_types, F.data.startswith("company_"))
@@ -1234,9 +1235,7 @@ async def process_superpowers(message: types.Message, state: FSMContext):
     """Process superpowers input"""
     superpowers_text = message.text.strip()
     superpowers = [s.strip() for s in superpowers_text.split(',') if s.strip()][:5]
-    if len(superpowers) < 3:
-        await message.answer("Укажите минимум 3 суперсилы:")
-        return
+    # Remove minimum requirement - all optional fields should be skippable
     await state.update_data(superpowers=superpowers)
     await start_constraints_flow(message, state)
 
