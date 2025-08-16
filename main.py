@@ -20,7 +20,7 @@ from profile import (ProfileStates, format_profile_display)
 import json
 from validators import parse_salary_string, parse_list_input, validate_superpowers
 from keyboards import get_level_keyboard, get_company_types_keyboard, get_skip_back_keyboard, get_back_keyboard, get_profile_actions_keyboard, get_profile_edit_fields_keyboard, get_confirm_delete_keyboard, get_final_review_keyboard, get_funnel_type_keyboard
-from cvr_autoanalyzer import analyze_and_recommend, analyze_and_recommend_async
+from cvr_autoanalyzer import analyze_and_recommend_async
 # Removed old reflection system imports - now using PRD v3.1
 # from reflection_forms import ReflectionTrigger, ReflectionQueue
 # from integration_v3 import register_reflection_handlers
@@ -174,7 +174,7 @@ async def handle_cvr_analysis_button(query: CallbackQuery, user_id: int):
     await query.answer("Анализирую ваши данные...")
     
     # Запускаем анализ CVR
-    cvr_analysis = await analyze_and_recommend(user_id)
+    cvr_analysis = await analyze_and_recommend_async(user_id, use_api=True)
     
     if cvr_analysis.get("status") == "problems_found":
         await send_cvr_recommendations(query.message, user_id, cvr_analysis)
