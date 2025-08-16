@@ -34,10 +34,10 @@ class CVRAutoAnalyzer:
         
         # Правила выбора гипотез по CVR (согласно требованиям)
         self.cvr_hypothesis_mapping = {
-            'CVR1': ['H1', 'H2'],  # CVR1 < 10% = Позиционирование + Каналы
-            'CVR2': ['H2', 'H3'],  # CVR2 < 10% = Каналы + Скрининг  
-            'CVR3': ['H3', 'H4'],  # CVR3 < 10% = Скрининг + Техподготовка
-            'CVR4': ['H4', 'H5'],  # CVR4 < 10% = Техподготовка + Переговоры
+            'CVR1': ['H1'],        # CVR1 < 10% = H1
+            'CVR2': ['H1', 'H2'],  # CVR2 < 10% = H1, H2
+            'CVR3': ['H3', 'H4'],  # CVR3 < 10% = H3, H4
+            'CVR4': ['H5'],        # CVR4 < 10% = H5
         }
     
     def detect_cvr_problems(self, user_id: int) -> Dict[str, any]:
