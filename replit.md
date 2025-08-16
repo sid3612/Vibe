@@ -43,6 +43,8 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
   * **Fixed trigger timing**: Reflection prompt now appears ONLY after completing all 5 statistical fields
   * **Statistical fields only**: Only increases in Responses, Screenings, Onsites, Offers, Rejections trigger forms
   * **CVR exclusion**: CVR changes do not trigger reflection forms as per specification
+  * **State management fix**: Resolved issue where bot stayed in number input state after wizard completion
+  * **Handler conflict resolution**: Fixed StateFilter(None) handler that was causing unwanted error messages
 
 ## User Preferences
 

@@ -985,11 +985,11 @@ async def show_main_menu_new_message(user_id: int, message):
 
 @dp.message(StateFilter(None))
 async def handle_edit_command(message: types.Message):
-    """Обработка команд редактирования данных"""
+    """Обработка команд редактирования данных без состояния"""
     text = message.text.strip()
     user_id = message.from_user.id
     
-    # Проверяем, является ли это командой редактирования
+    # Проверяем, является ли это командой редактирования (формат: YYYY-MM-DD channel field value)
     parts = text.split()
     if len(parts) == 4:
         try:
@@ -1018,8 +1018,8 @@ async def handle_edit_command(message: types.Message):
         except Exception as e:
             await message.answer(f"❌ Ошибка: {str(e)}")
     else:
-        # Показываем справку
-        await message.answer("Используйте команды: /start, /menu, /help, /faq")
+        # Для всех других сообщений без состояния - показать главное меню
+        await show_main_menu(user_id, message)
 
 # Profile FSM state handlers
 @dp.message(ProfileStates.role, F.text)
