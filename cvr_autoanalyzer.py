@@ -327,7 +327,7 @@ class CVRAutoAnalyzer:
   - Активность и посты
   - Рекомендации от коллег"""
 
-ПРОБЛЕМНЫЕ ОБЛАСТИ (CVR < 10% при знаменателе ≥5):"""
+ПРОБЛЕМНЫЕ ОБЛАСТИ (CVR < 10% при знаменателе >=5):"""
         
         for problem in problems:
             prompt += f"\n• {problem['cvr_name']}: {problem['cvr_value']:.1f}% (знаменатель: {problem['denominator']})"
