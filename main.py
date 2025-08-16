@@ -314,7 +314,27 @@ async def process_channel_name(message: types.Message, state: FSMContext):
     if add_channel(user_id, channel_name):
         await message.answer(f"✅ Канал '{channel_name}' добавлен!")
         await state.clear()
-        await show_channels_menu(user_id, message)
+        # Показываем меню каналов новым сообщением
+        channels = get_user_channels(user_id)
+        text = "📝 Управление каналами\n\n"
+        if channels:
+            text += "Ваши каналы:\n"
+            for channel in channels:
+                text += f"• {channel}\n"
+        else:
+            text += "У вас пока нет добавленных каналов."
+        
+        keyboard_buttons = []
+        keyboard_buttons.append([InlineKeyboardButton(text="➕ Добавить канал", callback_data="add_channel")])
+        
+        if channels:
+            for channel in channels:
+                keyboard_buttons.append([InlineKeyboardButton(text=f"❌ {channel}", callback_data=f"remove_channel_{channel}")])
+        
+        keyboard_buttons.append([InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="main_menu")])
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        await message.answer(text, reply_markup=keyboard)
     else:
         await message.answer("❌ Канал с таким названием уже существует")
 
@@ -377,7 +397,31 @@ async def process_week_data(message: types.Message, state: FSMContext):
         if success_count > 0:
             await message.answer(f"✅ Добавлено {success_count} записей за неделю {week_start}")
             await state.clear()
-            await show_main_menu(user_id, message)
+            # Показываем главное меню новым сообщением
+            user_data = get_user_funnels(user_id)
+            current_funnel = "Активная" if user_data.get('active_funnel') == 'active' else "Пассивная"
+            
+            menu_text = f"""
+📊 Главное меню
+
+Текущая воронка: {current_funnel}
+Каналов настроено: {len(get_user_channels(user_id))}
+
+Выберите действие:
+"""
+            
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
+                [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
+                [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
+                [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
+                [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")],
+                [InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")],
+                [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
+                [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
+            ])
+            
+            await message.answer(menu_text, reply_markup=keyboard)
         else:
             await message.answer("❌ Не удалось обработать данные. Проверьте формат ввода.")
             
@@ -404,7 +448,31 @@ async def process_reminder_settings(message: types.Message, state: FSMContext):
             
         await message.answer(text)
         await state.clear()
-        await show_main_menu(user_id, message)
+        # Показываем главное меню новым сообщением
+        user_data = get_user_funnels(user_id)
+        current_funnel = "Активная" if user_data.get('active_funnel') == 'active' else "Пассивная"
+        
+        menu_text = f"""
+📊 Главное меню
+
+Текущая воронка: {current_funnel}
+Каналов настроено: {len(get_user_channels(user_id))}
+
+Выберите действие:
+"""
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
+            [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
+            [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
+            [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
+            [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")],
+            [InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")],
+            [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
+            [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
+        ])
+        
+        await message.answer(menu_text, reply_markup=keyboard)
     else:
         await message.answer("❌ Неверная частота. Используйте: daily, weekly или off")
 
