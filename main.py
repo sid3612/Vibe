@@ -325,7 +325,7 @@ async def show_main_menu(user_id: int, message_or_query):
         await message_or_query.answer(menu_text, reply_markup=keyboard)
 
 # Define callback filters to exclude reflection v3.1 form callbacks but allow basic navigation 
-@dp.callback_query(~F.data.startswith("rating_") & ~F.data.startswith("reason_v31_") & ~F.data.startswith("reasons_v31_") & ~F.data.startswith("skip_strengths") & ~F.data.startswith("skip_weaknesses") & ~F.data.startswith("skip_form") & ~F.data.startswith("reject_type_"))
+@dp.callback_query(~F.data.startswith("rating_") & ~F.data.startswith("reason_v31_") & ~F.data.startswith("reasons_v31_") & ~F.data.startswith("skip_strengths") & ~F.data.startswith("skip_weaknesses") & ~F.data.startswith("skip_form") & ~F.data.startswith("reject_type_") & ~F.data.startswith("reflection_v31_"))
 async def process_callback(query: CallbackQuery, state: FSMContext):
     """Обработчик основных callback запросов (исключая reflection v3.1)"""
     data = query.data
@@ -1205,7 +1205,7 @@ async def process_rejections(message: types.Message, state: FSMContext):
         sections = ReflectionV31System.check_reflection_trigger(user_id, week_start, channel, funnel_type, old_data_dict, new_data_dict)
         
         if sections:
-            # Store state data for reflection form before clearing and offering
+            # Store state data for reflection form before offering
             await state.update_data(
                 reflection_sections=sections,
                 reflection_context={
@@ -1217,6 +1217,7 @@ async def process_rejections(message: types.Message, state: FSMContext):
             )
             # Offer reflection form using PRD v3.1 system
             await ReflectionV31System.offer_reflection_form(message, user_id, week_start, channel, funnel_type, sections)
+            # НЕ очищаем state здесь - это будет сделано в обработчиках кнопок
         else:
             # Clear state and show main menu after data addition
             await state.clear()

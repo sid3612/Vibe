@@ -408,7 +408,19 @@ def analyze_and_recommend(user_id: int) -> Optional[Dict[str, any]]:
     """
     Синхронная обертка для совместимости с существующим кодом
     """
-    return asyncio.run(analyze_and_recommend_async(user_id, use_api=False))
+    try:
+        return asyncio.run(analyze_and_recommend_async(user_id, use_api=False))
+    except RuntimeError:
+        # Если уже в event loop, создаем новый loop в отдельном потоке
+        import threading
+        import concurrent.futures
+        
+        def run_analysis():
+            return asyncio.run(analyze_and_recommend_async(user_id, use_api=False))
+        
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(run_analysis)
+            return future.result()
 
 
 if __name__ == "__main__":
