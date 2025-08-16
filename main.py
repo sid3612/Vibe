@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timedelta
 
 from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -883,7 +883,7 @@ async def show_main_menu_new_message(user_id: int, message):
     
     await message.answer(menu_text, reply_markup=keyboard)
 
-@dp.message()
+@dp.message(StateFilter(None))
 async def handle_edit_command(message: types.Message):
     """Обработка команд редактирования данных"""
     text = message.text.strip()
