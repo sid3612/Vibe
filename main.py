@@ -206,9 +206,10 @@ async def show_main_menu(user_id: int, message_or_query):
         # It's a regular message, send new message
         await message_or_query.answer(menu_text, reply_markup=keyboard)
 
-@dp.callback_query()
+# Define callback filters to exclude reflection v3.1 callbacks
+@dp.callback_query(~F.data.startswith("reflection_v31_") & ~F.data.startswith("rating_") & ~F.data.startswith("reason_v31_") & ~F.data.startswith("reasons_v31_"))
 async def process_callback(query: CallbackQuery, state: FSMContext):
-    """Обработчик всех callback запросов"""
+    """Обработчик основных callback запросов (исключая reflection v3.1)"""
     data = query.data
     user_id = query.from_user.id
     
