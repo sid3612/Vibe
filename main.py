@@ -674,9 +674,15 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
             # Показываем выбор каналов для ввода данных
             channels = get_user_channels(user_id)
             if not channels:
-                channels = ["LinkedIn", "HH.ru", "Хедхантинг"]
-                for channel in channels:
-                    add_user_channel(user_id, channel)
+                await query.message.edit_text(
+                    "⚠️ У вас нет настроенных каналов для ввода данных.\n\n"
+                    "Сначала добавьте хотя бы один канал через 'Управление каналами'.",
+                    reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
+                        [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
+                    ])
+                )
+                return
             
             text = "📊 Выберите канал для ввода данных:"
             keyboard_buttons = []
