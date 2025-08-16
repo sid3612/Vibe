@@ -60,23 +60,20 @@ async def cmd_start(message: types.Message):
     # Добавляем пользователя в БД
     add_user(user_id, username)
     
-    welcome_text = """
-🎯 Добро пожаловать в Job Funnel Coach!
+    welcome_text = """👋HackOFFer — оффер быстрее и без догадок
 
-Этот бот поможет вам отслеживать и анализировать воронки поиска работы.
+Когда кажется, что "где-то течёт", но непонятно где.
 
-Доступные команды:
-/menu - Главное меню
-/help - Помощь
-/faq - Часто задаваемые вопросы
+HackOFFer — ваш AI-ментор по поиску работы: считает конверсию, находит узкие места и превращает их в понятные шаги.
+Начни с Заполнения профиля, а после Внеси данные за неделю.
 
-Выберите тип воронки для начала работы:
-"""
+Выберите, с чего начнём:"""
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎯 Активная воронка", callback_data="funnel_active")],
-        [InlineKeyboardButton(text="👀 Пассивная воронка", callback_data="funnel_passive")],
-        [InlineKeyboardButton(text="📊 Главное меню", callback_data="main_menu")]
+        [InlineKeyboardButton(text="📝 Заполнить профиль", callback_data="create_profile")],
+        [InlineKeyboardButton(text="📊 Внести данные за неделю", callback_data="data_entry")],
+        [InlineKeyboardButton(text="📚 Главное меню", callback_data="main_menu")],
+        [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
     ])
     
     await message.answer(welcome_text, reply_markup=keyboard)
@@ -537,6 +534,36 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
             [InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="main_menu")]
         ])
         await query.message.edit_text(faq_text, reply_markup=keyboard, parse_mode="HTML")
+        
+    elif data == "data_entry":
+        # Переход к вводу данных - проверяем наличие профиля
+        profile_data = get_profile(user_id)
+        if not profile_data:
+            await query.message.edit_text(
+                "⚠️ Для ввода данных сначала нужно создать профиль.\n\nПрофиль определяет тип воронки (активный/пассивный поиск) для правильного сбора метрик.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="📝 Создать профиль", callback_data="create_profile")],
+                    [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
+                ])
+            )
+        else:
+            # Показываем выбор каналов для ввода данных
+            channels = get_user_channels(user_id)
+            if not channels:
+                channels = ["LinkedIn", "HH.ru", "Хедхантинг"]
+                for channel in channels:
+                    add_user_channel(user_id, channel)
+            
+            text = "📊 Выберите канал для ввода данных:"
+            keyboard_buttons = []
+            for channel in channels:
+                keyboard_buttons.append([InlineKeyboardButton(text=channel, callback_data=f"select_channel_{channel}")])
+            
+            keyboard_buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")])
+            keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+            
+            await query.message.edit_text(text, reply_markup=keyboard)
+            await state.set_state(FunnelStates.choosing_channel)
 
 async def show_channels_menu(user_id: int, message):
     """Показать меню управления каналами"""
