@@ -906,8 +906,10 @@ async def process_rejections(message: types.Message, state: FSMContext):
         new_data_record = get_week_data(user_id, week_start, channel, funnel_type)
         new_data_dict = dict(new_data_record) if new_data_record else {}
         
-        await message.answer(f"✅ Данные успешно сохранены для канала {channel} за неделю {week_start}!")
+        # Clear state FIRST to prevent staying in input mode
         await state.clear()
+        
+        await message.answer(f"✅ Данные успешно сохранены для канала {channel} за неделю {week_start}!")
         
         # Check for reflection triggers ONLY for the 5 statistical fields
         statistical_fields = ['responses', 'screenings', 'onsites', 'offers', 'rejections']
@@ -923,9 +925,9 @@ async def process_rejections(message: types.Message, state: FSMContext):
         # Offer reflection form if any statistical field increased
         if triggers:
             await ReflectionTrigger.offer_reflection_form(message, user_id, week_start, channel, funnel_type, triggers)
-        
-        # Показываем главное меню
-        await show_main_menu_new_message(user_id, message)
+        else:
+            # If no triggers, show main menu
+            await show_main_menu(user_id, message)
         
     except ValueError:
         await message.answer("❌ Введите число")
@@ -948,14 +950,14 @@ async def process_edit_value(message: types.Message, state: FSMContext):
             await message.answer("❌ Не удалось обновить данные")
             
         await state.clear()
-        await show_main_menu_new_message(user_id, message)
+        await show_main_menu(user_id, message)
         
     except ValueError:
         await message.answer("❌ Введите число")
 
 async def show_main_menu_new_message(user_id: int, message):
-    """Показать главное меню новым сообщением"""
-    user_data = get_user_funnels(user_id)
+    """Deprecated - use show_main_menu instead"""
+    await show_main_menu(user_id, message)
     current_funnel = "Активная" if user_data.get('active_funnel') == 'active' else "Пассивная"
     
     menu_text = f"""
