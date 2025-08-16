@@ -73,7 +73,7 @@ HackOFFer — ваш AI-ментор по поиску работы: счита�
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📝 Заполнить профиль", callback_data="create_profile")],
         [InlineKeyboardButton(text="📊 Внести данные за неделю", callback_data="data_entry")],
-        [InlineKeyboardButton(text="🎯 Анализ CVR", callback_data="cvr_analysis")],
+        [InlineKeyboardButton(text="🎯 AI-анализ конверсии", callback_data="cvr_analysis")],
         [InlineKeyboardButton(text="📚 Главное меню", callback_data="main_menu")],
         [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
     ])
@@ -307,7 +307,7 @@ async def show_main_menu(user_id: int, message_or_query):
         [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
         [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
         [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
-        [InlineKeyboardButton(text="🎯 Анализ CVR", callback_data="cvr_analysis")],
+        [InlineKeyboardButton(text="🎯 AI-анализ конверсии", callback_data="cvr_analysis")],
         [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")],
         [InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")],
         [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
