@@ -284,20 +284,12 @@ class CVRAutoAnalyzer:
         
         return snapshot
     
-    def _get_linkedin_from_profile(self, user_id: int) -> Optional[str]:
-        """Получить LinkedIn URL из профиля пользователя"""
-        profile = get_profile(user_id)
-        if profile:
-            return profile.get('linkedin')
-        return None
-    
-    def generate_recommendations_prompt(self, chatgpt_data: Dict[str, any], user_id: int = None) -> str:
+    def generate_recommendations_prompt(self, chatgpt_data: Dict[str, any]) -> str:
         """
         Генерирует промпт для ChatGPT на основе данных анализа
         
         Args:
             chatgpt_data: Подготовленные данные для анализа
-            user_id: ID пользователя (опционально, для получения LinkedIn)
             
         Returns:
             Строка с промптом для ChatGPT
@@ -314,23 +306,9 @@ class CVRAutoAnalyzer:
 • Уровень: {profile['level']}
 • Локация: {profile['location']} → {profile['target_location']}
 • Срок поиска: {profile['deadline_weeks']} недель
-• Тип воронки: {"Активный поиск (подает заявки)" if profile['funnel_type'] == 'active' else "Пассивный поиск (находят его)"}"""
-        
-        # Добавляем LinkedIn, если указан
-        linkedin_url = self._get_linkedin_from_profile(user_id) if user_id else profile.get('linkedin')
-        if linkedin_url:
-            prompt += f"""
-• LinkedIn: {linkedin_url}
-❗ ВАЖНО: Проанализируй LinkedIn профиль кандидата и учти его при рекомендациях. Обрати внимание на:
-  - Полноту заполнения профиля
-  - Качество описания опыта
-  - Наличие ключевых слов для роли {profile['role']}
-  - Активность и посты
-  - Рекомендации от коллег"""
-        
-        prompt += """
+• Тип воронки: {"Активный поиск (подает заявки)" if profile['funnel_type'] == 'active' else "Пассивный поиск (находят его)"}
 
-ПРОБЛЕМНЫЕ ОБЛАСТИ (CVR < 10% при знаменателе >=5):"""
+ПРОБЛЕМНЫЕ ОБЛАСТИ (CVR < 10% при знаменателе ≥5):"""
         
         for problem in problems:
             prompt += f"\n• {problem['cvr_name']}: {problem['cvr_value']:.1f}% (знаменатель: {problem['denominator']})"
@@ -353,10 +331,10 @@ class CVRAutoAnalyzer:
 
 ФОРМАТ ОТВЕТА:
 Каждая рекомендация должна быть:
-- Конкретной и выполнимой
-- Привязанной к его роли ({profile['role']}) и уровню ({profile['level']})
-- Нацеленной на улучшение конкретного CVR
-- С примером или шаблоном где возможно
+• Конкретной и выполнимой
+• Привязанной к его роли ({profile['role']}) и уровню ({profile['level']})
+• Нацеленной на улучшение конкретного CVR
+• С примером или шаблоном где возможно
 
 Начинай каждую рекомендацию с номера (1-10) и эмодзи."""
         
@@ -379,14 +357,7 @@ class CVRAutoAnalyzer:
         try:
             client = AsyncOpenAI(api_key=OPENAI_API_KEY)
             
-            # Извлекаем user_id из данных первой проблемы или используем None
-            user_id = None
-            if chatgpt_data.get("problems"):
-                user_data = chatgpt_data["problems"][0].get("user_data", {})
-                # user_id может быть в других местах, но для LinkedIn используем профиль
-                pass
-            
-            prompt = self.generate_recommendations_prompt(chatgpt_data, user_id)
+            prompt = self.generate_recommendations_prompt(chatgpt_data)
             
             response = await client.chat.completions.create(
                 model=OPENAI_MODEL,
@@ -440,7 +411,7 @@ async def analyze_and_recommend_async(user_id: int, use_api: bool = True) -> Opt
     chatgpt_data = analyzer.prepare_chatgpt_data(user_id, analysis_result["problems"])
     
     # Шаг 3: Генерация промпта
-    prompt = analyzer.generate_recommendations_prompt(chatgpt_data, user_id)
+    prompt = analyzer.generate_recommendations_prompt(chatgpt_data)
     
     # Шаг 4: Попытка получить рекомендации через API
     ai_recommendations = None
