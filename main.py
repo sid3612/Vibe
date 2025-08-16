@@ -206,8 +206,8 @@ async def show_main_menu(user_id: int, message_or_query):
         # It's a regular message, send new message
         await message_or_query.answer(menu_text, reply_markup=keyboard)
 
-# Define callback filters to exclude reflection v3.1 callbacks
-@dp.callback_query(~F.data.startswith("reflection_v31_") & ~F.data.startswith("rating_") & ~F.data.startswith("reason_v31_") & ~F.data.startswith("reasons_v31_") & ~F.data.startswith("skip_") & ~F.data.startswith("reject_type_"))
+# Define callback filters to exclude reflection v3.1 callbacks but allow profile skip_step
+@dp.callback_query(~F.data.startswith("reflection_v31_") & ~F.data.startswith("rating_") & ~F.data.startswith("reason_v31_") & ~F.data.startswith("reasons_v31_") & ~F.data.startswith("skip_strengths") & ~F.data.startswith("skip_weaknesses") & ~F.data.startswith("skip_form") & ~F.data.startswith("reject_type_"))
 async def process_callback(query: CallbackQuery, state: FSMContext):
     """Обработчик основных callback запросов (исключая reflection v3.1)"""
     data = query.data
@@ -379,21 +379,57 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
     # Skip handlers for optional fields
     elif data == "skip_step":
         current_state = await state.get_state()
-        if current_state == ProfileStates.role_synonyms.state:
+        
+        if current_state == ProfileStates.role_synonyms:
             await start_salary_flow(query.message, state)
-        elif current_state in [ProfileStates.salary_min.state, ProfileStates.salary_max.state, ProfileStates.salary_currency.state, ProfileStates.salary_period.state]:
+        elif current_state == ProfileStates.salary_min:
             await start_company_types_flow(query.message, state)
-        elif current_state == ProfileStates.company_types.state:
+        elif current_state == ProfileStates.company_types:
             await start_industries_flow(query.message, state)
-        elif current_state == ProfileStates.industries.state:
+        elif current_state == ProfileStates.industries:
             await start_competencies_flow(query.message, state)
-        elif current_state == ProfileStates.competencies.state:
+        elif current_state == ProfileStates.competencies:
             await start_superpowers_flow(query.message, state)
-        elif current_state == ProfileStates.superpowers.state:
+        elif current_state == ProfileStates.superpowers:
             await start_constraints_flow(query.message, state)
-        elif current_state == ProfileStates.constraints.state:
+        elif current_state == ProfileStates.constraints:
+            await start_linkedin_flow(query.message, state)
+        elif current_state == ProfileStates.linkedin:
             await finish_profile_creation(query.message, state)
-        await query.answer()
+        
+        await query.answer("Пропущено")
+    
+    # Back handlers for optional fields
+    elif data == "back_step":
+        current_state = await state.get_state()
+        
+        if current_state == ProfileStates.role_synonyms:
+            # Go back to funnel type selection
+            await query.message.edit_text(
+                "📊 Выберите ваш основной тип поиска работы:\n\n"
+                "🧑‍💻 <b>Активный поиск</b> - вы подаёте заявки на вакансии\n"
+                "👀 <b>Пассивный поиск</b> - работодатели находят вас через профиль\n\n"
+                "Этот выбор определит, какую воронку вы будете использовать по умолчанию.",
+                reply_markup=get_funnel_type_keyboard(),
+                parse_mode="HTML"
+            )
+            await state.set_state(ProfileStates.funnel_type)
+        elif current_state == ProfileStates.salary_min:
+            await start_optional_fields_flow(query.message, state)
+        elif current_state == ProfileStates.company_types:
+            await start_salary_flow(query.message, state)
+        elif current_state == ProfileStates.industries:
+            await start_company_types_flow(query.message, state)
+        elif current_state == ProfileStates.competencies:
+            await start_industries_flow(query.message, state)
+        elif current_state == ProfileStates.superpowers:
+            await start_competencies_flow(query.message, state)
+        elif current_state == ProfileStates.constraints:
+            await start_superpowers_flow(query.message, state)
+        elif current_state == ProfileStates.linkedin:
+            await start_constraints_flow(query.message, state)
+        
+        await query.answer("Назад")
         
     elif data.startswith("select_channel_"):
         channel = data.replace("select_channel_", "")
@@ -452,7 +488,7 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
                 ('screenings', 'Скрининги'),
                 ('onsites', 'Онсайты'),
                 ('offers', 'Офферы'),
-                ('rejections', 'Реджекты')
+                ('rejections', 'Отказ')
             ]
         else:
             fields = [
@@ -461,7 +497,7 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
                 ('screenings', 'Скрининги'),
                 ('onsites', 'Онсайты'),
                 ('offers', 'Офферы'),
-                ('rejections', 'Реджекты')
+                ('rejections', 'Отказ')
             ]
         
         text = f"✏️ Канал: {channel}\n\nВыберите поле для редактирования:"
