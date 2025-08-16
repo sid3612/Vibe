@@ -17,7 +17,11 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
   - "👀 Пассивный поиск (мне пишут)" for passive funnel
 - **Profile Display Enhancement**: Added funnel type preference to profile view for transparency
 - **Automatic Synchronization**: Profile preference automatically updates user's active funnel setting
-- **Comprehensive Testing**: Full integration test suite validates funnel type workflow end-to-end
+- **UI/UX Improvements**: 
+  - Fixed "Пропустить" and "Назад" buttons in profile creation wizard with proper callback handling
+  - Moved "Сменить воронку" button from main menu to profile menu for better logical grouping
+  - Added contextual navigation that returns to profile menu after funnel changes
+- **Comprehensive Testing**: Full integration test suite validates funnel type workflow and button functionality
 
 ### PRD v3.1 Implementation Complete (August 16, 2025)
 - **Major Architecture Update**: Replaced queue-based reflection system with simplified single-form MVP

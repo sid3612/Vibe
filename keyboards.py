@@ -68,6 +68,7 @@ def get_profile_actions_keyboard():
             InlineKeyboardButton(text="Редактировать", callback_data="profile_edit"),
             InlineKeyboardButton(text="Удалить", callback_data="profile_delete")
         ],
+        [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
         [InlineKeyboardButton(text="Назад в меню", callback_data="main_menu")]
     ])
 
