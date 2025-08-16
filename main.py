@@ -73,6 +73,7 @@ HackOFFer — ваш AI-ментор по поиску работы: счита�
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📝 Заполнить профиль", callback_data="create_profile")],
         [InlineKeyboardButton(text="📊 Внести данные за неделю", callback_data="data_entry")],
+        [InlineKeyboardButton(text="🎯 Анализ CVR", callback_data="cvr_analysis")],
         [InlineKeyboardButton(text="📚 Главное меню", callback_data="main_menu")],
         [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
     ])
