@@ -21,6 +21,8 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
 - **Reflection History**: Implemented "История рефлексий" showing last 10 reflections with details
 - **History Menu**: Split history into "История данных" and "История рефлексий" for better UX
 - **IndexError Fix**: Resolved section index bounds checking in save_rejection_reasons_and_continue
+- **Hypotheses Integration Prep**: Added hypotheses.xlsx file and hypotheses_manager.py module for future ChatGPT integration
+- **CVR Analysis Framework**: Created structure for analyzing user CVR data and preparing ChatGPT prompts
 
 - **UTF-8 CSV Export**: Fixed CSV export to include UTF-8 BOM for proper Excel compatibility
 - **Table Formatting**: Expanded table width to prevent CVR4 column overflow (70→75 chars)
