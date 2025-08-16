@@ -3,7 +3,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, CallbackQuery
 from aiogram.fsm.context import FSMContext
@@ -114,7 +114,7 @@ async def cmd_profile_setup(message: types.Message, state: FSMContext):
         "📋 Мастер создания профиля\n\n"
         "Начнем с основных полей. Введите вашу роль (например, Python Developer):"
     )
-    await ProfileStates.role.set()
+    await state.set_state(ProfileStates.role)
 
 @dp.message(Command("profile"))
 async def cmd_profile(message: types.Message):
@@ -298,7 +298,7 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
             "📋 Мастер создания профиля\n\n"
             "Введите вашу роль (например, Python Developer):"
         )
-        await ProfileStates.role.set()
+        await state.set_state(ProfileStates.role)
     
     elif data == "confirm_delete":
         deleted = delete_profile(user_id)
@@ -315,7 +315,7 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
             level_value = data.replace("level_", "")
             if level_value == "custom":
                 await query.message.edit_text("Введите ваш уровень:")
-                await ProfileStates.level_custom.set()
+                await state.set_state(ProfileStates.level_custom)
             else:
                 level_map = {
                     "junior": "Junior",
@@ -325,7 +325,7 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
                 }
                 await state.update_data(level=level_map[level_value])
                 await query.message.edit_text("Введите срок поиска в неделях (1-52):")
-                await ProfileStates.deadline_weeks.set()
+                await state.set_state(ProfileStates.deadline_weeks)
         await query.answer()
         
     elif data.startswith("select_channel_"):
@@ -876,6 +876,7 @@ async def show_main_menu_new_message(user_id: int, message):
         [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
         [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")],
         [InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")],
+        [InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu")],
         [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
         [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
     ])
@@ -921,7 +922,7 @@ async def handle_edit_command(message: types.Message):
         await message.answer("Используйте команды: /start, /menu, /help, /faq")
 
 # Profile FSM state handlers
-@dp.message(ProfileStates.role)
+@dp.message(ProfileStates.role, F.text)
 async def process_profile_role(message: types.Message, state: FSMContext):
     """Process role input"""
     role = message.text.strip()
@@ -931,9 +932,9 @@ async def process_profile_role(message: types.Message, state: FSMContext):
     
     await state.update_data(role=role)
     await message.answer("Введите вашу текущую локацию:")
-    await ProfileStates.current_location.set()
+    await state.set_state(ProfileStates.current_location)
 
-@dp.message(ProfileStates.current_location)
+@dp.message(ProfileStates.current_location, F.text)
 async def process_profile_current_location(message: types.Message, state: FSMContext):
     """Process current location"""
     location = message.text.strip()
@@ -943,9 +944,9 @@ async def process_profile_current_location(message: types.Message, state: FSMCon
     
     await state.update_data(current_location=location)
     await message.answer("Введите локацию поиска работы:")
-    await ProfileStates.target_location.set()
+    await state.set_state(ProfileStates.target_location)
 
-@dp.message(ProfileStates.target_location)
+@dp.message(ProfileStates.target_location, F.text)
 async def process_profile_target_location(message: types.Message, state: FSMContext):
     """Process target location"""
     location = message.text.strip()
@@ -955,9 +956,9 @@ async def process_profile_target_location(message: types.Message, state: FSMCont
     
     await state.update_data(target_location=location)
     await message.answer("Выберите ваш уровень:", reply_markup=get_level_keyboard())
-    await ProfileStates.level.set()
+    await state.set_state(ProfileStates.level)
 
-@dp.message(ProfileStates.level_custom)
+@dp.message(ProfileStates.level_custom, F.text)
 async def process_profile_level_custom(message: types.Message, state: FSMContext):
     """Process custom level input"""
     level = message.text.strip()
@@ -967,9 +968,9 @@ async def process_profile_level_custom(message: types.Message, state: FSMContext
     
     await state.update_data(level=level)
     await message.answer("Введите срок поиска в неделях (1-52):")
-    await ProfileStates.deadline_weeks.set()
+    await state.set_state(ProfileStates.deadline_weeks)
 
-@dp.message(ProfileStates.deadline_weeks)
+@dp.message(ProfileStates.deadline_weeks, F.text)
 async def process_profile_deadline(message: types.Message, state: FSMContext):
     """Process deadline weeks"""
     try:
