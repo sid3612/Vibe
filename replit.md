@@ -6,6 +6,18 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
 
 ## Recent Changes (August 2025)
 
+### PRD v3.1 Implementation Complete (August 16, 2025)
+- **Major Architecture Update**: Replaced queue-based reflection system with simplified single-form MVP
+- **Simplified Trigger Logic**: Reflection form now triggers only after completing all 5 statistical fields with ≥1 increase
+- **Single Combined Form**: One form with multiple sections instead of individual forms per event
+- **Database Schema**: Added `event_feedback` table with section-based storage per PRD v3.1 specification
+- **Enhanced User Experience**: "Yes/No" prompt followed by combined form with skip/save options
+- **Statistical Fields Only**: Only Responses, Screenings, Onsites, Offers, Rejections trigger forms
+- **CVR Exclusion**: Applications/Views changes do not trigger reflection forms
+- **Form Sections**: Dynamic sections based on which statistical fields increased
+- **Rejection Handling**: Special multi-select reasons interface for rejection stages
+- **State Management**: Improved FSM flow with proper completion handling
+
 - **UTF-8 CSV Export**: Fixed CSV export to include UTF-8 BOM for proper Excel compatibility
 - **Table Formatting**: Expanded table width to prevent CVR4 column overflow (70→75 chars)
 - **Enhanced Data Input UX**: Added week information display and clearer field descriptions
@@ -33,21 +45,17 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
 - **Plain Text Profile Display**: Changed from styled card format to clean text messages with action buttons
 - **Regression Testing Suite**: Implemented comprehensive testing covering all critical functionality
 - **Bug Fixes Applied**: Fixed constraints field mapping and date calculation accuracy issues
-- **PRD v3 Implementation Complete**: Fully implemented reflection forms system per PRD v3 specification
-  * Created reflection forms system with automatic trigger detection after 5-field completion
-  * Implemented complete FSM workflow for structured reflection data collection
-  * Added reflection queue management with pending/completed/skipped status tracking
-  * Created database schema extension with reflection_queue table
-  * Built integration layer connecting reflection system to existing week data handlers
-  * Added new commands: /log_event, /pending_forms, /last_events for reflection management
-  * **Fixed trigger timing**: Reflection prompt now appears ONLY after completing all 5 statistical fields
-  * **Statistical fields only**: Only increases in Responses, Screenings, Onsites, Offers, Rejections trigger forms
-  * **CVR exclusion**: CVR changes do not trigger reflection forms as per specification
-  * **State management fix**: Resolved issue where bot stayed in number input state after wizard completion
-  * **Handler conflict resolution**: Fixed StateFilter(None) handler that was causing unwanted error messages
-  * **Message editing error fix**: Resolved Telegram "message can't be edited" errors by proper type detection
-  * **ValueError handler improvement**: Enhanced error handlers with state validation to prevent unwanted responses
-  * **Complete UI flow fix**: All wizard completion scenarios now flow correctly to reflection or main menu
+- **PRD v3.1 Implementation Complete**: Fully replaced PRD v3 with simplified single-form reflection system
+  * **Simplified Architecture**: Replaced complex queue-based system with single combined form approach
+  * **Enhanced Trigger Logic**: Reflection triggers only on statistical field increases (Responses, Screenings, Onsites, Offers, Rejections)
+  * **Single Form Experience**: One combined form with multiple sections instead of individual event forms
+  * **New Database Schema**: `event_feedback` table with section-stage storage architecture
+  * **Improved UX Flow**: Simple "Yes/No" prompt → Combined form → Save/Cancel completion
+  * **Dynamic Sections**: Form sections dynamically generated based on which statistical fields increased
+  * **Rejection Workflow**: Specialized multi-select interface for rejection reason collection
+  * **State Management**: Clean FSM flow with proper state clearing and error handling
+  * **Type Safety**: Comprehensive null checking and message accessibility validation
+  * **Comprehensive Testing**: Full test suite validating trigger logic, data saving, and UI components
 
 ## User Preferences
 

@@ -97,6 +97,36 @@ def init_db():
         END;
     """)
     
+    # PRD v3.1 - Event feedback table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS event_feedback (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            funnel_type TEXT NOT NULL,
+            channel TEXT NOT NULL,
+            week_start TEXT NOT NULL,
+            
+            section_stage TEXT NOT NULL,
+            events_count INTEGER NOT NULL,
+            
+            rating_overall INTEGER,
+            strengths TEXT,
+            weaknesses TEXT,
+            rating_mood INTEGER,
+            reject_after_stage TEXT,
+            reject_reasons_json TEXT,
+            reject_reason_other TEXT,
+            
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users (user_id)
+        )
+    """)
+    
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_event_feedback_ctx
+        ON event_feedback(user_id, week_start, funnel_type, channel, section_stage)
+    """)
+    
     conn.commit()
     conn.close()
 

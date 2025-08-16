@@ -917,20 +917,24 @@ async def process_rejections(message: types.Message, state: FSMContext):
         
         await message.answer(f"✅ Данные успешно сохранены для канала {channel} за неделю {week_start}!")
         
-        # Check for reflection triggers ONLY for the 5 statistical fields
-        statistical_fields = ['responses', 'screenings', 'onsites', 'offers', 'rejections']
-        triggers = []
+        # Check for reflection triggers using PRD v3.1 system
+        from reflection_v31 import ReflectionV31System
         
-        for field in statistical_fields:
-            old_value = old_data_dict.get(field, 0)
-            new_value = new_data_dict.get(field, 0)
-            delta = new_value - old_value
-            if delta > 0:
-                triggers.append((field, delta))
+        sections = ReflectionV31System.check_reflection_trigger(user_id, week_start, channel, funnel_type, old_data_dict, new_data_dict)
         
-        # Offer reflection form if any statistical field increased
-        if triggers:
-            await ReflectionTrigger.offer_reflection_form(message, user_id, week_start, channel, funnel_type, triggers)
+        if sections:
+            # Store state data for reflection form
+            await state.update_data(
+                reflection_sections=sections,
+                reflection_context={
+                    'user_id': user_id,
+                    'week_start': week_start,
+                    'channel': channel,
+                    'funnel_type': funnel_type
+                }
+            )
+            # Offer reflection form using PRD v3.1 system
+            await ReflectionV31System.offer_reflection_form(message, user_id, week_start, channel, funnel_type, sections)
         else:
             # If no triggers, show main menu
             await show_main_menu(user_id, message)
@@ -1331,8 +1335,9 @@ async def main():
     # Инициализируем базу данных
     init_db()
     
-    # Регистрируем обработчики рефлексии
-    register_reflection_handlers(dp)
+    # Регистрируем обработчики рефлексии PRD v3.1
+    from integration_v31 import register_v31_reflection_handlers
+    register_v31_reflection_handlers(dp)
     
     # Настраиваем напоминания
     setup_reminders(bot)
