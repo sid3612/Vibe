@@ -185,6 +185,7 @@ async def show_main_menu(user_id: int, message_or_query):
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu")],
+        [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
         [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
         [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
         [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
@@ -235,38 +236,15 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
             set_active_funnel(user_id, "passive")
             await query.answer("Выбрана пассивная воронка")
             await show_main_menu(user_id, query.message)
-    
-    # Funnel change handlers from profile context
-    elif data == "funnel_active_from_profile":
-        set_active_funnel(user_id, "active")
-        await query.answer("Выбрана активная воронка")
-        # Go back to profile menu
-        profile_data = get_profile(user_id)
-        if profile_data:
-            profile_text = format_profile_display(profile_data)
-            await query.message.edit_text(f"```\n{profile_text}\n```", 
-                                        parse_mode="MarkdownV2", 
-                                        reply_markup=get_profile_actions_keyboard())
-    
-    elif data == "funnel_passive_from_profile":
-        set_active_funnel(user_id, "passive")
-        await query.answer("Выбрана пассивная воронка")
-        # Go back to profile menu
-        profile_data = get_profile(user_id)
-        if profile_data:
-            profile_text = format_profile_display(profile_data)
-            await query.message.edit_text(f"```\n{profile_text}\n```", 
-                                        parse_mode="MarkdownV2", 
-                                        reply_markup=get_profile_actions_keyboard())
         
     elif data == "main_menu":
         await show_main_menu(user_id, query.message)
         
     elif data == "change_funnel":
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🧑‍💻 Активный поиск (я подаюсь)", callback_data="funnel_active_from_profile")],
-            [InlineKeyboardButton(text="👀 Пассивный поиск (мне пишут)", callback_data="funnel_passive_from_profile")],
-            [InlineKeyboardButton(text="⬅️ Назад", callback_data="profile_menu")]
+            [InlineKeyboardButton(text="🧑‍💻 Активный поиск (я подаюсь)", callback_data="funnel_active")],
+            [InlineKeyboardButton(text="👀 Пассивный поиск (мне пишут)", callback_data="funnel_passive")],
+            [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
         ])
         await query.message.edit_text("Выберите тип воронки:", reply_markup=keyboard)
         
@@ -922,7 +900,7 @@ async def process_week_data(message: types.Message, state: FSMContext):
 """
             
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu")],
+                [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
                 [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
                 [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
                 [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
@@ -1137,12 +1115,13 @@ async def show_main_menu_new_message(user_id: int, message):
 """
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu")],
+        [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
         [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
         [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
         [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
         [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")],
         [InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")],
+        [InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu")],
         [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
         [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
     ])
