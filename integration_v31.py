@@ -56,10 +56,12 @@ def register_v31_reflection_handlers(dp):
     # Callback handlers for reflection triggers - aiogram v3 style
     @dp.callback_query(F.data.startswith("reflection_v31_yes_"))
     async def _handle_reflection_v31_yes(callback: types.CallbackQuery, state: FSMContext):
+        print(f"🔥 Callback YES перехвачен: {callback.data}")
         await handle_reflection_v31_yes(callback, state)
         
     @dp.callback_query(F.data == "reflection_v31_no")
     async def _handle_reflection_v31_no(callback: types.CallbackQuery, state: FSMContext):
+        print(f"🔥 Callback NO перехвачен: {callback.data}")
         await handle_reflection_v31_no(callback, state)
         
     @dp.callback_query(F.data == "reflection_v31_cancel")

@@ -109,7 +109,7 @@ class ReflectionV31System:
             'screening': '📞 Скрининг',
             'onsite': '🧑‍💼 Онсайт', 
             'offer': '🏁 Оффер',
-            'reject_no_interview': '❌ Отказ без интервью',
+            'reject_no_interview': '❌ Отказ',
             'reject_after_interview': '❌❌ Реджект после интервью'
         }
         return stage_map.get(stage, stage)
@@ -256,6 +256,8 @@ async def handle_reflection_v31_yes(callback_query: types.CallbackQuery, state: 
 
 async def handle_reflection_v31_no(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle 'No' for reflection form offer"""
+    print(f"🎯 handle_reflection_v31_no вызван для пользователя {callback_query.from_user.id}")
+    
     if callback_query.message:
         try:
             await callback_query.message.edit_text("Хорошо, форма рефлексии пропущена.")
