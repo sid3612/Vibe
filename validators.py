@@ -77,11 +77,9 @@ def parse_list_input(input_str: str, max_items: int = 10) -> List[str]:
     return items
 
 def calculate_target_end_date(weeks: int) -> str:
-    """Calculate target end date from current Monday + N weeks"""
-    today = datetime.now()
-    # Find Monday of current week
-    monday = today - timedelta(days=today.weekday())
-    target_date = monday + timedelta(weeks=weeks)
+    """Calculate target end date from current date + N weeks"""
+    today = datetime.now().date()
+    target_date = today + timedelta(weeks=weeks)
     return target_date.strftime('%Y-%m-%d')
 
 def validate_superpowers(superpowers_list: List[str]) -> bool:

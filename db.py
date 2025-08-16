@@ -385,6 +385,10 @@ def save_profile(user_id: int, profile_data: dict):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Convert constraints key to match database column if present
+    if 'constraints' in profile_data:
+        profile_data['constraints_text'] = profile_data.pop('constraints')
+    
     # Check if profile exists
     cursor.execute("SELECT user_id FROM profiles WHERE user_id = ?", (user_id,))
     exists = cursor.fetchone()
