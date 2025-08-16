@@ -11,11 +11,14 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
-from db import init_db, add_user, get_user_funnels, set_active_funnel, get_user_channels, add_channel, remove_channel, add_week_data, get_week_data, update_week_field, get_user_history, set_user_reminders
+from db import init_db, add_user, get_user_funnels, set_active_funnel, get_user_channels, add_channel, remove_channel, add_week_data, get_week_data, update_week_field, get_user_history, set_user_reminders, save_profile, get_profile, delete_profile
 from metrics import calculate_cvr_metrics, format_metrics_table, format_history_table
 from export import generate_csv_export
 from faq import get_faq_text
 from reminders import setup_reminders, send_reminder
+from profile import (ProfileStates, format_profile_display)
+from validators import parse_salary_string, parse_list_input, validate_superpowers
+from keyboards import get_level_keyboard, get_company_types_keyboard, get_skip_back_keyboard, get_back_keyboard, get_profile_actions_keyboard, get_profile_edit_fields_keyboard, get_confirm_delete_keyboard, get_final_review_keyboard
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -103,6 +106,65 @@ async def cmd_faq(message: types.Message):
     faq_text = get_faq_text()
     await message.answer(faq_text, parse_mode="HTML")
 
+# Profile commands
+@dp.message(Command("profile_setup"))
+async def cmd_profile_setup(message: types.Message, state: FSMContext):
+    """Start profile setup wizard"""
+    await message.answer(
+        "📋 Мастер создания профиля\n\n"
+        "Начнем с основных полей. Введите вашу роль (например, Python Developer):"
+    )
+    await ProfileStates.role.set()
+
+@dp.message(Command("profile"))
+async def cmd_profile(message: types.Message):
+    """Show current profile"""
+    user_id = message.from_user.id
+    profile_data = get_profile(user_id)
+    
+    if not profile_data:
+        await message.answer(
+            "У вас еще нет профиля. Хотите создать?",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="Создать профиль", callback_data="create_profile")],
+                [InlineKeyboardButton(text="Назад в меню", callback_data="main_menu")]
+            ])
+        )
+        return
+    
+    profile_text = format_profile_display(profile_data)
+    await message.answer(f"```\n{profile_text}\n```", 
+                        parse_mode="MarkdownV2", 
+                        reply_markup=get_profile_actions_keyboard())
+
+@dp.message(Command("profile_edit"))
+async def cmd_profile_edit(message: types.Message):
+    """Edit profile fields"""
+    user_id = message.from_user.id
+    profile_data = get_profile(user_id)
+    
+    if not profile_data:
+        await message.answer("Сначала создайте профиль командой /profile_setup")
+        return
+    
+    await message.answer("Выберите поле для редактирования:", 
+                        reply_markup=get_profile_edit_fields_keyboard())
+
+@dp.message(Command("profile_delete"))
+async def cmd_profile_delete(message: types.Message):
+    """Delete profile confirmation"""
+    user_id = message.from_user.id
+    profile_data = get_profile(user_id)
+    
+    if not profile_data:
+        await message.answer("У вас нет профиля для удаления")
+        return
+    
+    await message.answer(
+        "⚠️ Вы уверены, что хотите удалить свой профиль? Это действие нельзя отменить.",
+        reply_markup=get_confirm_delete_keyboard()
+    )
+
 async def show_main_menu(user_id: int, message_or_query):
     """Показать главное меню"""
     user_data = get_user_funnels(user_id)
@@ -118,6 +180,7 @@ async def show_main_menu(user_id: int, message_or_query):
 """
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu")],
         [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
         [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
         [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
@@ -212,6 +275,58 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
             
         await query.answer(text)
         await show_main_menu(user_id, query.message)
+    
+    # Profile menu handlers
+    elif data == "profile_menu":
+        profile_data = get_profile(user_id)
+        if not profile_data:
+            await query.message.edit_text(
+                "У вас еще нет профиля. Хотите создать?",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="Создать профиль", callback_data="create_profile")],
+                    [InlineKeyboardButton(text="Назад в меню", callback_data="main_menu")]
+                ])
+            )
+        else:
+            profile_text = format_profile_display(profile_data)
+            await query.message.edit_text(f"```\n{profile_text}\n```", 
+                                        parse_mode="MarkdownV2", 
+                                        reply_markup=get_profile_actions_keyboard())
+    
+    elif data == "create_profile":
+        await query.message.edit_text(
+            "📋 Мастер создания профиля\n\n"
+            "Введите вашу роль (например, Python Developer):"
+        )
+        await ProfileStates.role.set()
+    
+    elif data == "confirm_delete":
+        deleted = delete_profile(user_id)
+        if deleted:
+            await query.answer("Профиль удален")
+            await show_main_menu(user_id, query.message)
+        else:
+            await query.answer("Ошибка при удалении профиля")
+    
+    # Profile level selection handlers
+    elif data.startswith("level_"):
+        current_state = await state.get_state()
+        if current_state == ProfileStates.level.state:
+            level_value = data.replace("level_", "")
+            if level_value == "custom":
+                await query.message.edit_text("Введите ваш уровень:")
+                await ProfileStates.level_custom.set()
+            else:
+                level_map = {
+                    "junior": "Junior",
+                    "middle": "Middle", 
+                    "senior": "Senior",
+                    "lead": "Lead"
+                }
+                await state.update_data(level=level_map[level_value])
+                await query.message.edit_text("Введите срок поиска в неделях (1-52):")
+                await ProfileStates.deadline_weeks.set()
+        await query.answer()
         
     elif data.startswith("select_channel_"):
         channel = data.replace("select_channel_", "")
@@ -804,6 +919,98 @@ async def handle_edit_command(message: types.Message):
     else:
         # Показываем справку
         await message.answer("Используйте команды: /start, /menu, /help, /faq")
+
+# Profile FSM state handlers
+@dp.message(ProfileStates.role)
+async def process_profile_role(message: types.Message, state: FSMContext):
+    """Process role input"""
+    role = message.text.strip()
+    if not role or len(role) < 1:
+        await message.answer("Роль не может быть пустой. Попробуйте еще раз:")
+        return
+    
+    await state.update_data(role=role)
+    await message.answer("Введите вашу текущую локацию:")
+    await ProfileStates.current_location.set()
+
+@dp.message(ProfileStates.current_location)
+async def process_profile_current_location(message: types.Message, state: FSMContext):
+    """Process current location"""
+    location = message.text.strip()
+    if not location:
+        await message.answer("Локация не может быть пустой. Попробуйте еще раз:")
+        return
+    
+    await state.update_data(current_location=location)
+    await message.answer("Введите локацию поиска работы:")
+    await ProfileStates.target_location.set()
+
+@dp.message(ProfileStates.target_location)
+async def process_profile_target_location(message: types.Message, state: FSMContext):
+    """Process target location"""
+    location = message.text.strip()
+    if not location:
+        await message.answer("Локация не может быть пустой. Попробуйте еще раз:")
+        return
+    
+    await state.update_data(target_location=location)
+    await message.answer("Выберите ваш уровень:", reply_markup=get_level_keyboard())
+    await ProfileStates.level.set()
+
+@dp.message(ProfileStates.level_custom)
+async def process_profile_level_custom(message: types.Message, state: FSMContext):
+    """Process custom level input"""
+    level = message.text.strip()
+    if not level:
+        await message.answer("Уровень не может быть пустым. Попробуйте еще раз:")
+        return
+    
+    await state.update_data(level=level)
+    await message.answer("Введите срок поиска в неделях (1-52):")
+    await ProfileStates.deadline_weeks.set()
+
+@dp.message(ProfileStates.deadline_weeks)
+async def process_profile_deadline(message: types.Message, state: FSMContext):
+    """Process deadline weeks"""
+    try:
+        weeks = int(message.text.strip())
+        if weeks < 1 or weeks > 52:
+            await message.answer("Срок должен быть от 1 до 52 недель. Попробуйте еще раз:")
+            return
+    except ValueError:
+        await message.answer("Введите число недель (1-52):")
+        return
+    
+    from validators import calculate_target_end_date
+    target_end_date = calculate_target_end_date(weeks)
+    await state.update_data(deadline_weeks=weeks, target_end_date=target_end_date)
+    
+    # Save basic profile
+    data = await state.get_data()
+    profile_data = {
+        'role': data['role'],
+        'current_location': data['current_location'],
+        'target_location': data['target_location'],
+        'level': data['level'],
+        'deadline_weeks': weeks,
+        'target_end_date': target_end_date
+    }
+    
+    save_profile(message.from_user.id, profile_data)
+    await state.clear()
+    
+    await message.answer(
+        f"✅ Профиль создан!\n\n"
+        f"Роль: {data['role']}\n"
+        f"Уровень: {data['level']}\n"
+        f"Текущая локация: {data['current_location']}\n"
+        f"Локация поиска: {data['target_location']}\n"
+        f"Срок: {weeks} недель (до {target_end_date})\n\n"
+        f"Используйте /profile для просмотра полного профиля.",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📊 Главное меню", callback_data="main_menu")]
+        ])
+    )
 
 async def main():
     """Основная функция запуска бота"""

@@ -60,6 +60,43 @@ def init_db():
         )
     """)
     
+    # Таблица профилей кандидатов
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS profiles (
+            user_id INTEGER PRIMARY KEY,
+            role TEXT NOT NULL,
+            current_location TEXT NOT NULL,
+            target_location TEXT NOT NULL,
+            level TEXT NOT NULL,
+            deadline_weeks INTEGER NOT NULL,
+            target_end_date TEXT NOT NULL,
+            
+            role_synonyms_json TEXT,
+            salary_min REAL,
+            salary_max REAL,
+            salary_currency TEXT,
+            salary_period TEXT,
+            company_types_json TEXT,
+            industries_json TEXT,
+            competencies_json TEXT,
+            superpowers_json TEXT,
+            constraints_text TEXT,
+            
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES users (user_id)
+        )
+    """)
+    
+    # Триггер для обновления updated_at
+    cursor.execute("""
+        CREATE TRIGGER IF NOT EXISTS profiles_updated
+        AFTER UPDATE ON profiles
+        BEGIN
+            UPDATE profiles SET updated_at = datetime('now') WHERE user_id = NEW.user_id;
+        END;
+    """)
+    
     conn.commit()
     conn.close()
 
@@ -341,6 +378,86 @@ def cleanup_duplicate_data():
     conn.close()
     
     return len(duplicates)
+
+# Profile management functions
+def save_profile(user_id: int, profile_data: dict):
+    """Save or update user profile"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Check if profile exists
+    cursor.execute("SELECT user_id FROM profiles WHERE user_id = ?", (user_id,))
+    exists = cursor.fetchone()
+    
+    if exists:
+        # Update existing profile
+        cursor.execute("""
+            UPDATE profiles SET 
+                role = ?, current_location = ?, target_location = ?, level = ?,
+                deadline_weeks = ?, target_end_date = ?, role_synonyms_json = ?,
+                salary_min = ?, salary_max = ?, salary_currency = ?, salary_period = ?,
+                company_types_json = ?, industries_json = ?, competencies_json = ?,
+                superpowers_json = ?, constraints_text = ?
+            WHERE user_id = ?
+        """, (
+            profile_data['role'], profile_data['current_location'], profile_data['target_location'],
+            profile_data['level'], profile_data['deadline_weeks'], profile_data['target_end_date'],
+            profile_data.get('role_synonyms_json'), profile_data.get('salary_min'),
+            profile_data.get('salary_max'), profile_data.get('salary_currency'),
+            profile_data.get('salary_period'), profile_data.get('company_types_json'),
+            profile_data.get('industries_json'), profile_data.get('competencies_json'),
+            profile_data.get('superpowers_json'), profile_data.get('constraints_text'),
+            user_id
+        ))
+    else:
+        # Insert new profile
+        cursor.execute("""
+            INSERT INTO profiles (
+                user_id, role, current_location, target_location, level,
+                deadline_weeks, target_end_date, role_synonyms_json,
+                salary_min, salary_max, salary_currency, salary_period,
+                company_types_json, industries_json, competencies_json,
+                superpowers_json, constraints_text
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            user_id, profile_data['role'], profile_data['current_location'],
+            profile_data['target_location'], profile_data['level'],
+            profile_data['deadline_weeks'], profile_data['target_end_date'],
+            profile_data.get('role_synonyms_json'), profile_data.get('salary_min'),
+            profile_data.get('salary_max'), profile_data.get('salary_currency'),
+            profile_data.get('salary_period'), profile_data.get('company_types_json'),
+            profile_data.get('industries_json'), profile_data.get('competencies_json'),
+            profile_data.get('superpowers_json'), profile_data.get('constraints_text')
+        ))
+    
+    conn.commit()
+    conn.close()
+
+def get_profile(user_id: int) -> dict:
+    """Get user profile"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM profiles WHERE user_id = ?", (user_id,))
+    profile = cursor.fetchone()
+    conn.close()
+    
+    if profile:
+        return dict(profile)
+    return {}
+
+def delete_profile(user_id: int) -> bool:
+    """Delete user profile"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("DELETE FROM profiles WHERE user_id = ?", (user_id,))
+    deleted = cursor.rowcount > 0
+    
+    conn.commit()
+    conn.close()
+    
+    return deleted
 
 def get_week_data(user_id: int, week_start: str, channel: str, funnel_type: str) -> dict:
     """Получить данные за неделю"""

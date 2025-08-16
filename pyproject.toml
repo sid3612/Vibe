@@ -7,5 +7,6 @@ dependencies = [
     "aiogram>=3.21.0",
     "apscheduler>=3.11.0",
     "pandas>=2.3.1",
+    "pydantic>=2.11.7",
     "pytz>=2025.2",
 ]

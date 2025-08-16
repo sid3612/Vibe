@@ -640,6 +640,7 @@ dependencies = [
     { name = "aiogram" },
     { name = "apscheduler" },
     { name = "pandas" },
+    { name = "pydantic" },
     { name = "pytz" },
 ]
 
@@ -648,6 +649,7 @@ requires-dist = [
     { name = "aiogram", specifier = ">=3.21.0" },
     { name = "apscheduler", specifier = ">=3.11.0" },
     { name = "pandas", specifier = ">=2.3.1" },
+    { name = "pydantic", specifier = ">=2.11.7" },
     { name = "pytz", specifier = ">=2025.2" },
 ]
 

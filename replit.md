@@ -7,12 +7,16 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
 ## Recent Changes (August 2025)
 
 - **UTF-8 CSV Export**: Fixed CSV export to include UTF-8 BOM for proper Excel compatibility
-- **Table Formatting**: Expanded table width to prevent CVR4 column overflow (65→70 chars)
+- **Table Formatting**: Expanded table width to prevent CVR4 column overflow (70→75 chars)
 - **Enhanced Data Input UX**: Added week information display and clearer field descriptions
 - **Step-by-Step Flow**: Improved prompts with descriptive field names for better user understanding
 - **Data Deduplication**: Fixed duplicate data issue - same week/channel entries now automatically sum values
 - **Database Cleanup**: Added functionality to clean up existing duplicates and prevent future occurrences
 - **Comprehensive Testing**: Added regression testing framework to prevent future issues
+- **PRD v2 Implementation**: Added candidate profile management system with core functionality
+- **Profile Database Schema**: Extended database with profiles table supporting all required and optional fields
+- **Profile FSM Workflow**: Implemented step-by-step profile creation wizard with validation
+- **Profile Integration**: Added profile menu to main interface with view/edit/delete capabilities
 
 ## User Preferences
 
@@ -28,7 +32,8 @@ The system uses SQLite as the local database solution, chosen for its simplicity
 - Users table for storing user preferences and settings
 - User_channels table for managing custom channel configurations per user
 - Week_data table for storing funnel metrics by user, week, and channel
-This approach ensures data isolation between users while maintaining referential integrity.
+- Profiles table for comprehensive candidate profile management (PRD v2)
+This approach ensures data isolation between users while maintaining referential integrity across all functional modules.
 
 ### Funnel Type Architecture
 The application implements a dual-funnel system:
@@ -62,6 +67,15 @@ Implements APScheduler for automated reminder functionality with configurable fr
 ### User Interface Design
 The bot uses inline keyboards for navigation and menu systems, combined with formatted text tables using monospace fonts for data display. This approach ensures readability within Telegram's constraints while maintaining a professional appearance.
 
+### Profile Management System (PRD v2)
+The candidate profile system implements a comprehensive FSM-based wizard for collecting and managing user career information:
+- **Required Fields**: Role, current location, target location, experience level, job search timeline
+- **Optional Fields**: Role synonyms, salary expectations, company preferences, industries, key competencies, achievements, constraints
+- **Validation Layer**: Pydantic-based validation for data integrity and type safety
+- **Database Integration**: JSON storage for complex field types within SQLite schema
+- **User Experience**: Step-by-step guided input with skip options and inline keyboard navigation
+- **Privacy Protection**: User-isolated data access with no cross-user data sharing
+
 ## External Dependencies
 
 ### Core Framework
@@ -71,6 +85,7 @@ The bot uses inline keyboards for navigation and menu systems, combined with for
 ### Data Processing
 - **pandas**: Data manipulation and analysis for metrics calculations and export generation
 - **sqlite3**: Built-in Python SQLite interface for local data persistence
+- **pydantic**: Advanced data validation and parsing for profile management system
 
 ### Timezone and Date Management
 - **pytz**: Timezone handling for accurate reminder scheduling across different user locations
