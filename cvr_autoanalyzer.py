@@ -26,6 +26,12 @@ class CVRAutoAnalyzer:
     def __init__(self):
         self.hypotheses_manager = HypothesesManager()
         
+        # Проверяем загрузились ли гипотезы
+        if self.hypotheses_manager.hypotheses_data is not None:
+            print(f"✅ CVR Analyzer: Загружено {len(self.hypotheses_manager.hypotheses_data)} гипотез из Excel")
+        else:
+            print("⚠️ CVR Analyzer: Используются встроенные гипотезы")
+        
         # Правила выбора гипотез по CVR (согласно требованиям)
         self.cvr_hypothesis_mapping = {
             'CVR1': ['H1', 'H2'],  # CVR1 < 10% = Позиционирование + Каналы
@@ -101,10 +107,20 @@ class CVRAutoAnalyzer:
                 hypothesis_ids = self.cvr_hypothesis_mapping.get(cvr_name, [])
                 hypotheses = []
                 
+                # Добавляем встроенные гипотезы по ID
                 for h_id in hypothesis_ids:
                     hypothesis = self.hypotheses_manager.get_hypothesis(h_id)
                     if hypothesis:
                         hypotheses.append(hypothesis)
+                
+                # Добавляем несколько случайных гипотез из Excel файла
+                if self.hypotheses_manager.hypotheses_data is not None:
+                    random_hypotheses = self.hypotheses_manager.get_random_hypotheses(3)
+                    for hyp in random_hypotheses:
+                        if hyp not in hypotheses:  # Избегаем дублирования
+                            hypotheses.append(hyp)
+                
+                print(f"📝 Для {cvr_name} найдено {len(hypotheses)} гипотез")
                 
                 problems.append({
                     'cvr_name': cvr_name,

@@ -28,6 +28,8 @@ class HypothesesManager:
         """
         self.excel_file_path = excel_file_path
         self.hypotheses_data = None
+        # Автоматически загружаем гипотезы при инициализации
+        self.load_hypotheses()
         
         # Встроенные гипотезы на случай отсутствия Excel файла
         self.built_in_hypotheses = {
@@ -84,9 +86,12 @@ class HypothesesManager:
             # Попытка чтения Excel файла
             df = pd.read_excel(self.excel_file_path)
             self.hypotheses_data = df
+            print(f"✅ Загружено {len(df)} гипотез из {self.excel_file_path}")
+            print(f"Столбцы: {list(df.columns)}")
             return df
         except Exception as e:
-            print(f"Ошибка при чтении файла гипотез: {e}")
+            print(f"❌ Ошибка при чтении файла гипотез {self.excel_file_path}: {e}")
+            print("Используются встроенные гипотезы")
             return None
     
     def get_user_cvr_analysis(self, user_id: int) -> Dict:
@@ -185,24 +190,63 @@ class HypothesesManager:
         # Сначала пытаемся найти в загруженных из Excel данных
         if self.hypotheses_data is not None:
             try:
-                # Предполагаем, что первый столбец содержит ID гипотез
-                matching_rows = self.hypotheses_data[self.hypotheses_data.iloc[:, 0] == hypothesis_id]
+                # Предполагаем, что второй столбец (hid) содержит ID гипотез
+                matching_rows = self.hypotheses_data[self.hypotheses_data.iloc[:, 1].astype(str) == hypothesis_id]
                 if not matching_rows.empty:
                     row = matching_rows.iloc[0]
                     return {
                         'id': hypothesis_id,
-                        'title': row.iloc[1] if len(row) > 1 else 'Без названия',
+                        'title': f"Гипотеза {hypothesis_id}",
                         'description': row.iloc[2] if len(row) > 2 else 'Без описания',
-                        'cvr_focus': row.iloc[3] if len(row) > 3 else 'Общий',
-                        'question': row.iloc[4] if len(row) > 4 else 'Нет вопроса',
-                        'actions': row.iloc[5] if len(row) > 5 else 'Нет действий',
-                        'effect': row.iloc[6] if len(row) > 6 else 'Нет описания эффекта'
+                        'cvr_focus': 'Из базы гипотез',
+                        'question': 'Подходит ли эта гипотеза для вашей ситуации?',
+                        'actions': row.iloc[2] if len(row) > 2 else 'Нет действий',
+                        'effect': 'Улучшение конверсии'
                     }
             except Exception as e:
                 print(f"Ошибка при поиске гипотезы в Excel: {e}")
         
         # Если не найдено в Excel или Excel не загружен, используем встроенные
         return self.built_in_hypotheses.get(hypothesis_id)
+    
+    def get_random_hypotheses(self, count: int = 5) -> List[Dict]:
+        """
+        Получить случайные гипотезы из Excel файла
+        
+        Args:
+            count: Количество гипотез для возврата
+            
+        Returns:
+            Список гипотез
+        """
+        if self.hypotheses_data is None or len(self.hypotheses_data) == 0:
+            # Возвращаем встроенные гипотезы
+            return list(self.built_in_hypotheses.values())[:count]
+        
+        try:
+            # Берем случайную выборку
+            sample_size = min(count, len(self.hypotheses_data))
+            random_rows = self.hypotheses_data.sample(n=sample_size)
+            
+            hypotheses = []
+            for idx, row in random_rows.iterrows():
+                h_id = str(row.iloc[1]) if len(row) > 1 else f"H{idx}"
+                h_name = str(row.iloc[2]) if len(row) > 2 else "Без названия"
+                
+                hypotheses.append({
+                    'id': h_id,
+                    'title': f"Гипотеза {h_id}",
+                    'description': h_name,
+                    'cvr_focus': 'Из базы гипотез',
+                    'question': 'Подходит ли эта гипотеза для вашей ситуации?',
+                    'actions': h_name,
+                    'effect': 'Улучшение конверсии'
+                })
+            
+            return hypotheses
+        except Exception as e:
+            print(f"Ошибка при получении случайных гипотез: {e}")
+            return list(self.built_in_hypotheses.values())[:count]
     
     def _calculate_avg_cvr(self, metrics: List[Dict], cvr_field: str) -> float:
         """Рассчитать средний CVR"""
@@ -234,17 +278,31 @@ class HypothesesManager:
     def _format_hypotheses_for_prompt(self) -> str:
         """Форматировать гипотезы для промпта"""
         if self.hypotheses_data is None:
-            return "Гипотезы недоступны"
+            # Используем встроенные гипотезы если Excel недоступен
+            formatted = []
+            for h_id, hypothesis in self.built_in_hypotheses.items():
+                formatted.append(f"- {h_id}: {hypothesis['title']} - {hypothesis['actions']}")
+            return "\n".join(formatted)
         
         # Преобразуем DataFrame в читаемый формат
         try:
             formatted = []
             for idx, row in self.hypotheses_data.iterrows():
-                # Предполагаем стандартную структуру Excel файла
-                formatted.append(f"- {row.iloc[0]}: {row.iloc[1]}")
-            return "\n".join(formatted)
+                # Структура: h_topic, hid, name
+                if len(row) >= 3:
+                    h_id = str(row.iloc[1])  # hid
+                    h_name = str(row.iloc[2])  # name
+                    formatted.append(f"- {h_id}: {h_name[:200]}{'...' if len(h_name) > 200 else ''}")
+                else:
+                    formatted.append(f"- {row.iloc[0]}: {row.iloc[1] if len(row) > 1 else 'Нет описания'}")
+            return "\n".join(formatted[:20])  # Ограничиваем до 20 гипотез для промпта
         except Exception as e:
-            return f"Ошибка форматирования гипотез: {e}"
+            print(f"Ошибка форматирования гипотез: {e}")
+            # Fallback к встроенным гипотезам
+            formatted = []
+            for h_id, hypothesis in self.built_in_hypotheses.items():
+                formatted.append(f"- {h_id}: {hypothesis['title']} - {hypothesis['actions']}")
+            return "\n".join(formatted)
 
 # Функции для интеграции с существующей системой
 def get_hypotheses_for_user(user_id: int) -> Optional[str]:
