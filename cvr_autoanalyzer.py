@@ -284,6 +284,13 @@ class CVRAutoAnalyzer:
         
         return snapshot
     
+    def _get_linkedin_from_profile(self, user_id: int) -> Optional[str]:
+        """Получить LinkedIn URL из профиля пользователя"""
+        profile = get_profile(user_id)
+        if profile:
+            return profile.get('linkedin')
+        return None
+    
     def generate_recommendations_prompt(self, chatgpt_data: Dict[str, any]) -> str:
         """
         Генерирует промпт для ChatGPT на основе данных анализа
@@ -306,7 +313,19 @@ class CVRAutoAnalyzer:
 • Уровень: {profile['level']}
 • Локация: {profile['location']} → {profile['target_location']}
 • Срок поиска: {profile['deadline_weeks']} недель
-• Тип воронки: {"Активный поиск (подает заявки)" if profile['funnel_type'] == 'active' else "Пассивный поиск (находят его)"}
+• Тип воронки: {"Активный поиск (подает заявки)" if profile['funnel_type'] == 'active' else "Пассивный поиск (находят его)"}"""
+        
+        # Добавляем LinkedIn, если указан
+        linkedin_url = self._get_linkedin_from_profile(user_id)
+        if linkedin_url:
+            prompt += f"""
+• LinkedIn: {linkedin_url}
+❗ ВАЖНО: Проанализируй LinkedIn профиль кандидата и учти его при рекомендациях. Обрати внимание на:
+  - Полноту заполнения профиля
+  - Качество описания опыта
+  - Наличие ключевых слов для роли {profile['role']}
+  - Активность и посты
+  - Рекомендации от коллег"""
 
 ПРОБЛЕМНЫЕ ОБЛАСТИ (CVR < 10% при знаменателе ≥5):"""
         
