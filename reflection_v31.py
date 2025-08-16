@@ -596,14 +596,19 @@ async def save_rejection_reasons_and_continue(message: types.Message, state: FSM
     section_index = data.get('current_section_index', 0)
     form_data = data.get('current_form_data', {})
     
-    current_section = sections[section_index]
-    section_key = f"section_{current_section['stage']}"
-    form_data[section_key]['reject_reasons'] = selected_reasons
-    
-    await state.update_data(current_form_data=form_data)
-    
-    # Move to next section
-    await move_to_next_section(message, state)
+    # Check if section_index is valid
+    if section_index < len(sections):
+        current_section = sections[section_index]
+        section_key = f"section_{current_section['stage']}"
+        form_data[section_key]['reject_reasons'] = selected_reasons
+        
+        await state.update_data(current_form_data=form_data)
+        
+        # Move to next section
+        await move_to_next_section(message, state)
+    else:
+        # All sections completed - save and finish
+        await save_and_complete_form(message, state)
 
 async def move_to_next_section(message: types.Message, state: FSMContext):
     """Move to the next section in the form"""

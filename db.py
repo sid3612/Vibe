@@ -532,6 +532,30 @@ def delete_profile(user_id: int) -> bool:
     
     return deleted
 
+def get_reflection_history(user_id: int, limit: int = 10) -> list:
+    """Получить историю рефлексий пользователя"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT 
+            section_stage, events_count, funnel_type, channel, 
+            week_start, rating_overall, strengths, weaknesses, 
+            rating_mood, reject_after_stage, reject_reasons_json, 
+            reject_reason_other, created_at
+        FROM event_feedback 
+        WHERE user_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT ?
+    """, (user_id, limit))
+    
+    reflections = []
+    for row in cursor.fetchall():
+        reflections.append(dict(row))
+    
+    conn.close()
+    return reflections
+
 def get_week_data(user_id: int, week_start: str, channel: str, funnel_type: str) -> dict:
     """Получить данные за неделю"""
     conn = get_db_connection()

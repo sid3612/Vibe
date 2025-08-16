@@ -260,7 +260,13 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
         await show_step_by_step_edit(user_id, query.message, state)
         
     elif data == "show_history":
+        await show_history_menu(user_id, query.message)
+        
+    elif data == "data_history":
         await show_user_history(user_id, query.message)
+        
+    elif data == "reflection_history":
+        await show_reflection_history(user_id, query.message)
         
     elif data == "export_csv":
         csv_data = generate_csv_export(user_id)
@@ -506,6 +512,71 @@ async def show_channels_menu(user_id: int, message):
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     await message.edit_text(text, reply_markup=keyboard)
 
+async def show_reflection_history(user_id: int, message):
+    """Показать историю рефлексий пользователя"""
+    from db import get_reflection_history
+    import json
+    
+    history_data = get_reflection_history(user_id, 10)
+    
+    if not history_data:
+        text = "💭 История рефлексий\n\nИстория рефлексий пуста. Добавьте данные и заполните форму рефлексии для создания истории."
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Назад к истории", callback_data="show_history")]
+        ])
+        await message.edit_text(text, reply_markup=keyboard)
+        return
+    
+    text = "💭 История рефлексий (последние 10)\n\n"
+    
+    for i, reflection in enumerate(history_data, 1):
+        # Парсим дату
+        created_at = reflection['created_at']
+        if 'T' in created_at:
+            date_part = created_at.split('T')[0]
+        else:
+            date_part = created_at.split(' ')[0]
+        
+        # Формируем заголовок
+        stage_name = {
+            'responses': 'Ответы',
+            'screenings': 'Скрининги', 
+            'onsites': 'Онсайты',
+            'offers': 'Офферы',
+            'rejections': 'Реджекты'
+        }.get(reflection['section_stage'], reflection['section_stage'])
+        
+        text += f"{i}. {stage_name} • {reflection['channel']} • {date_part}\n"
+        text += f"   События: {reflection['events_count']}\n"
+        
+        if reflection['rating_overall']:
+            text += f"   Оценка: {reflection['rating_overall']}/10\n"
+        
+        if reflection['strengths']:
+            text += f"   💪 {reflection['strengths'][:50]}{'...' if len(reflection['strengths']) > 50 else ''}\n"
+        
+        if reflection['weaknesses']:
+            text += f"   📝 {reflection['weaknesses'][:50]}{'...' if len(reflection['weaknesses']) > 50 else ''}\n"
+        
+        if reflection['reject_reasons_json']:
+            try:
+                reasons = json.loads(reflection['reject_reasons_json'])
+                if reasons:
+                    text += f"   ❌ Причины: {', '.join(reasons[:2])}{'...' if len(reasons) > 2 else ''}\n"
+            except:
+                pass
+        
+        text += "\n"
+    
+    if len(text) > 4000:
+        text = text[:3950] + "\n... (показаны не все записи)"
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⬅️ Назад к истории", callback_data="show_history")]
+    ])
+    
+    await message.edit_text(text, reply_markup=keyboard)
+
 async def show_week_data_input(user_id: int, message, state: FSMContext):
     """Показать форму ввода данных за неделю"""
     user_data = get_user_funnels(user_id)
@@ -535,19 +606,30 @@ HH.ru: 15 5 3 2 0 2
     await message.edit_text(text)
     await state.set_state(FunnelStates.waiting_for_week_data)
 
+async def show_history_menu(user_id: int, message):
+    """Показать меню истории"""
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 История данных", callback_data="data_history")],
+        [InlineKeyboardButton(text="💭 История рефлексий", callback_data="reflection_history")],
+        [InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="main_menu")]
+    ])
+    
+    text = "📈 Выберите тип истории:"
+    await message.edit_text(text, reply_markup=keyboard)
+
 async def show_user_history(user_id: int, message):
-    """Показать историю пользователя"""
+    """Показать историю данных пользователя"""
     history_data = get_user_history(user_id)
     user_data = get_user_funnels(user_id)
     funnel_type = user_data.get('active_funnel', 'active')
     
     if not history_data:
-        text = "📈 История данных\n\nДанных пока нет. Добавьте данные за неделю для просмотра истории."
+        text = "📊 История данных\n\nДанных пока нет. Добавьте данные за неделю для просмотра истории."
     else:
         text = format_history_table(history_data, funnel_type)
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="main_menu")]
+        [InlineKeyboardButton(text="⬅️ Назад к истории", callback_data="show_history")]
     ])
     
     await message.edit_text(f"```\n{text}\n```", reply_markup=keyboard, parse_mode="MarkdownV2")

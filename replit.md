@@ -17,6 +17,10 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
 - **Form Sections**: Dynamic sections based on which statistical fields increased
 - **Rejection Handling**: Special multi-select reasons interface for rejection stages
 - **State Management**: Improved FSM flow with proper completion handling
+- **Rejection Type Classification**: Added granular rejection type selection (без интервью, после рекрутера, после тех интервью)
+- **Reflection History**: Implemented "История рефлексий" showing last 10 reflections with details
+- **History Menu**: Split history into "История данных" and "История рефлексий" for better UX
+- **IndexError Fix**: Resolved section index bounds checking in save_rejection_reasons_and_continue
 
 - **UTF-8 CSV Export**: Fixed CSV export to include UTF-8 BOM for proper Excel compatibility
 - **Table Formatting**: Expanded table width to prevent CVR4 column overflow (70→75 chars)
