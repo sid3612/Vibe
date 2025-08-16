@@ -5,10 +5,19 @@ CVR Auto-Analyzer - автоматический анализ проблем в 
 """
 
 import json
+import asyncio
 from typing import Dict, List, Tuple, Optional
 from db import get_profile, get_user_history, get_reflection_history
 from hypotheses_manager import HypothesesManager
 from metrics import calculate_cvr_metrics
+from config import OPENAI_API_KEY, OPENAI_MODEL, OPENAI_MAX_TOKENS
+
+try:
+    from openai import AsyncOpenAI
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+    print("⚠️ OpenAI library not installed. Install with: pip install openai")
 
 
 class CVRAutoAnalyzer:
@@ -306,17 +315,61 @@ class CVRAutoAnalyzer:
 Начинай каждую рекомендацию с номера (1-10) и эмодзи."""
         
         return prompt
+    
+    async def get_chatgpt_recommendations(self, chatgpt_data: Dict[str, any]) -> Optional[str]:
+        """
+        Получает рекомендации от ChatGPT через API
+        
+        Args:
+            chatgpt_data: Подготовленные данные для анализа
+            
+        Returns:
+            Строка с рекомендациями от ChatGPT или None при ошибке
+        """
+        if not OPENAI_AVAILABLE or not OPENAI_API_KEY or OPENAI_API_KEY == "YOUR_OPENAI_API_KEY_HERE":
+            print("⚠️ OpenAI API не настроен. Возвращаем промпт для ручного использования.")
+            return None
+        
+        try:
+            client = AsyncOpenAI(api_key=OPENAI_API_KEY)
+            
+            prompt = self.generate_recommendations_prompt(chatgpt_data)
+            
+            response = await client.chat.completions.create(
+                model=OPENAI_MODEL,
+                messages=[
+                    {
+                        "role": "system", 
+                        "content": "Ты HackOFFer AI-ментор по поиску работы. Анализируй воронку кандидата и давай персональные рекомендации."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                max_tokens=OPENAI_MAX_TOKENS,
+                temperature=0.7
+            )
+            
+            recommendations = response.choices[0].message.content.strip()
+            print(f"✅ Получены рекомендации от ChatGPT ({len(recommendations)} символов)")
+            return recommendations
+            
+        except Exception as e:
+            print(f"❌ Ошибка при запросе к OpenAI API: {e}")
+            return None
 
 
-def analyze_and_recommend(user_id: int) -> Optional[Dict[str, any]]:
+async def analyze_and_recommend_async(user_id: int, use_api: bool = True) -> Optional[Dict[str, any]]:
     """
-    Основная функция: анализирует CVR и подготавливает рекомендации
+    Асинхронная функция: анализирует CVR и получает рекомендации
     
     Args:
         user_id: ID пользователя
+        use_api: Использовать ли OpenAI API для получения рекомендаций
         
     Returns:
-        Dict с результатами анализа и данными для ChatGPT
+        Dict с результатами анализа и рекомендациями
     """
     analyzer = CVRAutoAnalyzer()
     
@@ -336,13 +389,26 @@ def analyze_and_recommend(user_id: int) -> Optional[Dict[str, any]]:
     # Шаг 3: Генерация промпта
     prompt = analyzer.generate_recommendations_prompt(chatgpt_data)
     
+    # Шаг 4: Попытка получить рекомендации через API
+    ai_recommendations = None
+    if use_api:
+        ai_recommendations = await analyzer.get_chatgpt_recommendations(chatgpt_data)
+    
     return {
         "status": "problems_found",
         "problems": analysis_result["problems"],
         "chatgpt_data": chatgpt_data,
         "chatgpt_prompt": prompt,
-        "message": f"Найдено {len(analysis_result['problems'])} проблем CVR. Готов промпт для ChatGPT."
+        "ai_recommendations": ai_recommendations,
+        "message": f"Найдено {len(analysis_result['problems'])} проблем CVR. " + 
+                  ("Получены AI рекомендации." if ai_recommendations else "Готов промпт для ChatGPT.")
     }
+
+def analyze_and_recommend(user_id: int) -> Optional[Dict[str, any]]:
+    """
+    Синхронная обертка для совместимости с существующим кодом
+    """
+    return asyncio.run(analyze_and_recommend_async(user_id, use_api=False))
 
 
 if __name__ == "__main__":

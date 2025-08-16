@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = [
     "aiogram>=3.21.0",
     "apscheduler>=3.11.0",
+    "openai>=1.99.9",
     "openpyxl>=3.1.5",
     "pandas>=2.3.1",
     "pydantic>=2.11.7",

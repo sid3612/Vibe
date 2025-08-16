@@ -3,6 +3,11 @@ import os
 # Токен бота Telegram - получаем из переменных окружения
 BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN_HERE")
 
+# OpenAI API конфигурация
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "YOUR_OPENAI_API_KEY_HERE")
+OPENAI_MODEL = "gpt-4o-mini"  # Более доступная модель
+OPENAI_MAX_TOKENS = 1000
+
 # Настройки базы данных
 DATABASE_NAME = "funnel_coach.db"
 

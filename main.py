@@ -20,7 +20,7 @@ from profile import (ProfileStates, format_profile_display)
 import json
 from validators import parse_salary_string, parse_list_input, validate_superpowers
 from keyboards import get_level_keyboard, get_company_types_keyboard, get_skip_back_keyboard, get_back_keyboard, get_profile_actions_keyboard, get_profile_edit_fields_keyboard, get_confirm_delete_keyboard, get_final_review_keyboard, get_funnel_type_keyboard
-from cvr_autoanalyzer import analyze_and_recommend
+from cvr_autoanalyzer import analyze_and_recommend, analyze_and_recommend_async
 # Removed old reflection system imports - now using PRD v3.1
 # from reflection_forms import ReflectionTrigger, ReflectionQueue
 # from integration_v3 import register_reflection_handlers
@@ -174,6 +174,7 @@ async def send_cvr_recommendations(message, user_id: int, cvr_analysis: dict):
     """
     problems = cvr_analysis.get("problems", [])
     chatgpt_prompt = cvr_analysis.get("chatgpt_prompt", "")
+    ai_recommendations = cvr_analysis.get("ai_recommendations")
     
     # Формируем сообщение о найденных проблемах
     problems_text = "🔍 **Автоанализ CVR обнаружил проблемы:**\n\n"
@@ -196,8 +197,26 @@ async def send_cvr_recommendations(message, user_id: int, cvr_analysis: dict):
     # Отправляем анализ проблем
     await message.answer(problems_text, parse_mode="Markdown")
     
-    # Показываем промпт для ChatGPT
-    if chatgpt_prompt:
+    # Если есть AI рекомендации, отправляем их
+    if ai_recommendations:
+        await message.answer(
+            "🤖 **Персональные рекомендации от AI:**",
+            parse_mode="Markdown"
+        )
+        
+        # Отправляем рекомендации частями, если они слишком длинные
+        max_length = 4000  # Telegram ограничение
+        if len(ai_recommendations) > max_length:
+            parts = [ai_recommendations[i:i+max_length] for i in range(0, len(ai_recommendations), max_length)]
+            for i, part in enumerate(parts, 1):
+                await message.answer(part, parse_mode="Markdown")
+                if i < len(parts):
+                    await asyncio.sleep(0.5)  # Небольшая пауза между частями
+        else:
+            await message.answer(ai_recommendations, parse_mode="Markdown")
+    
+    # Если нет AI рекомендаций, показываем промпт для ChatGPT
+    elif chatgpt_prompt:
         await message.answer(
             "🤖 **Готов промпт для получения персональных рекомендаций:**\n\n"
             "Скопируйте этот текст и отправьте в ChatGPT для получения 10 персональных рекомендаций:",
@@ -1137,7 +1156,7 @@ async def process_rejections(message: types.Message, state: FSMContext):
         
         # Check for CVR problems and generate recommendations (Iteration 4)
         try:
-            cvr_analysis = analyze_and_recommend(user_id)
+            cvr_analysis = await analyze_and_recommend_async(user_id, use_api=True)
             if cvr_analysis and cvr_analysis.get("status") == "problems_found":
                 # Store CVR recommendations for sending after reflection form
                 await state.update_data(cvr_analysis=cvr_analysis)
