@@ -618,7 +618,8 @@ async def save_and_complete_form_new_message(message: types.Message, state: FSMC
         await message.answer("✅ Форма рефлексии сохранена!")
         # Show main menu after successful save
         from main import show_main_menu
-        await show_main_menu(message)
+        user_id = context['user_id']
+        await show_main_menu(user_id, message)
     else:
         await message.answer("❌ Ошибка при сохранении формы рефлексии")
     
@@ -646,7 +647,8 @@ async def save_and_complete_form(message: types.Message, state: FSMContext):
         await message.answer("✅ Форма рефлексии сохранена!")
         # Show main menu after successful save
         from main import show_main_menu
-        await show_main_menu(message)
+        user_id = context['user_id']
+        await show_main_menu(user_id, message)
     else:
         await message.answer("❌ Ошибка при сохранении формы рефлексии")
     
