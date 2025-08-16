@@ -30,6 +30,7 @@ class ProfileStates(StatesGroup):
     competencies = State()
     superpowers = State()
     constraints = State()
+    linkedin = State()
     
     # Review and edit
     final_review = State()
@@ -116,7 +117,11 @@ def format_profile_display(profile_data: dict) -> str:
         result.append(profile_data['constraints'])
         result.append("")
     
-    # Note: Don't duplicate company_types - it's already shown above
+    if profile_data.get('linkedin'):
+        result.append("🔗 LINKEDIN")
+        result.append("-" * 40)
+        result.append(profile_data['linkedin'])
+        result.append("")
     
     return "\n".join(result)
     

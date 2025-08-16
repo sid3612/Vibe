@@ -1097,6 +1097,15 @@ async def start_constraints_flow(message, state: FSMContext):
     )
     await state.set_state(ProfileStates.constraints)
 
+async def start_linkedin_flow(message, state: FSMContext):
+    """Start LinkedIn URL collection"""
+    await message.answer(
+        "Ссылка на LinkedIn — ваш профиль в LinkedIn:\n"
+        "Пример: https://linkedin.com/in/yourprofile",
+        reply_markup=get_skip_back_keyboard()
+    )
+    await state.set_state(ProfileStates.linkedin)
+
 async def finish_profile_creation(message, state: FSMContext):
     """Complete profile creation and save"""
     data = await state.get_data()
@@ -1131,6 +1140,8 @@ async def finish_profile_creation(message, state: FSMContext):
         profile_data['superpowers_json'] = json.dumps(data['superpowers'])
     if data.get('constraints'):
         profile_data['constraints'] = data['constraints']
+    if data.get('linkedin'):
+        profile_data['linkedin'] = data['linkedin']
     
     # Save profile
     user_id = message.from_user.id if hasattr(message, 'from_user') else message.chat.id
@@ -1236,6 +1247,13 @@ async def process_constraints(message: types.Message, state: FSMContext):
     """Process constraints input"""
     constraints = message.text.strip()
     await state.update_data(constraints=constraints)
+    await start_linkedin_flow(message, state)
+
+@dp.message(ProfileStates.linkedin, F.text)
+async def process_linkedin(message: types.Message, state: FSMContext):
+    """Process LinkedIn URL input"""
+    linkedin = message.text.strip()
+    await state.update_data(linkedin=linkedin)
     await finish_profile_creation(message, state)
 
 async def main():

@@ -397,7 +397,7 @@ def save_profile(user_id: int, profile_data: dict):
                 deadline_weeks = ?, target_end_date = ?, role_synonyms_json = ?,
                 salary_min = ?, salary_max = ?, salary_currency = ?, salary_period = ?,
                 company_types_json = ?, industries_json = ?, competencies_json = ?,
-                superpowers_json = ?, constraints_text = ?
+                superpowers_json = ?, constraints_text = ?, linkedin = ?
             WHERE user_id = ?
         """, (
             profile_data['role'], profile_data['current_location'], profile_data['target_location'],
@@ -407,7 +407,7 @@ def save_profile(user_id: int, profile_data: dict):
             profile_data.get('salary_period'), profile_data.get('company_types_json'),
             profile_data.get('industries_json'), profile_data.get('competencies_json'),
             profile_data.get('superpowers_json'), profile_data.get('constraints_text'),
-            user_id
+            profile_data.get('linkedin'), user_id
         ))
     else:
         # Insert new profile
@@ -417,8 +417,8 @@ def save_profile(user_id: int, profile_data: dict):
                 deadline_weeks, target_end_date, role_synonyms_json,
                 salary_min, salary_max, salary_currency, salary_period,
                 company_types_json, industries_json, competencies_json,
-                superpowers_json, constraints_text
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                superpowers_json, constraints_text, linkedin
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             user_id, profile_data['role'], profile_data['current_location'],
             profile_data['target_location'], profile_data['level'],
@@ -427,7 +427,8 @@ def save_profile(user_id: int, profile_data: dict):
             profile_data.get('salary_max'), profile_data.get('salary_currency'),
             profile_data.get('salary_period'), profile_data.get('company_types_json'),
             profile_data.get('industries_json'), profile_data.get('competencies_json'),
-            profile_data.get('superpowers_json'), profile_data.get('constraints_text')
+            profile_data.get('superpowers_json'), profile_data.get('constraints_text'),
+            profile_data.get('linkedin')
         ))
     
     conn.commit()
