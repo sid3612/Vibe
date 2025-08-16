@@ -236,14 +236,22 @@ async def handle_reflection_v31_yes(callback_query: types.CallbackQuery, state: 
         return
     
     # Start combined form - show first section
-    if callback_query.message and hasattr(callback_query.message, 'edit_text'):
-        await start_combined_reflection_form(callback_query.message, state, sections, context)
+    if callback_query.message:
+        try:
+            await start_combined_reflection_form(callback_query.message, state, sections, context)
+        except Exception as e:
+            print(f"Ошибка запуска формы рефлексии: {e}")
+            await callback_query.answer("Ошибка запуска формы рефлексии")
     await callback_query.answer()
 
 async def handle_reflection_v31_no(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle 'No' for reflection form offer"""
-    if callback_query.message and hasattr(callback_query.message, 'edit_text'):
-        await callback_query.message.edit_text("Хорошо, форма рефлексии пропущена.")
+    if callback_query.message:
+        try:
+            await callback_query.message.edit_text("Хорошо, форма рефлексии пропущена.")
+        except Exception as e:
+            print(f"Ошибка редактирования сообщения: {e}")
+            await callback_query.message.answer("Хорошо, форма рефлексии пропущена.")
         
         # Показываем главное меню
         from main import show_main_menu
@@ -309,12 +317,20 @@ async def process_next_section(message: types.Message, state: FSMContext):
         ])
         
         header_text += f"Тип отказа?"
-        await message.edit_text(header_text, reply_markup=reject_type_keyboard)
+        try:
+            await message.edit_text(header_text, reply_markup=reject_type_keyboard)
+        except Exception as e:
+            print(f"Ошибка редактирования сообщения: {e}")
+            await message.answer(header_text, reply_markup=reject_type_keyboard)
         await state.set_state(ReflectionV31States.section_reject_type)
     else:
         # For non-rejection sections, ask for rating
         header_text += f"Как прошло? Оцените от 1 (очень плохо) до 5 (отлично):"
-        await message.edit_text(header_text, reply_markup=ReflectionV31System.get_rating_keyboard())
+        try:
+            await message.edit_text(header_text, reply_markup=ReflectionV31System.get_rating_keyboard())
+        except Exception as e:
+            print(f"Ошибка редактирования сообщения: {e}")
+            await message.answer(header_text, reply_markup=ReflectionV31System.get_rating_keyboard())
         await state.set_state(ReflectionV31States.section_rating)
 
 async def handle_section_rating(callback_query: types.CallbackQuery, state: FSMContext):
@@ -342,12 +358,20 @@ async def handle_section_rating(callback_query: types.CallbackQuery, state: FSMC
         [InlineKeyboardButton(text="Пропустить", callback_data="skip_strengths")]
     ])
     
-    if hasattr(callback_query.message, 'edit_text'):
-        await callback_query.message.edit_text(
-            f"Оценка: {rating}/5\n\n"
-            f"Отмеченные сильные стороны:",
-            reply_markup=skip_keyboard
-        )
+    if callback_query.message:
+        try:
+            await callback_query.message.edit_text(
+                f"Оценка: {rating}/5\n\n"
+                f"Отмеченные сильные стороны:",
+                reply_markup=skip_keyboard
+            )
+        except Exception as e:
+            print(f"Ошибка редактирования сообщения: {e}")
+            await callback_query.message.answer(
+                f"Оценка: {rating}/5\n\n"
+                f"Отмеченные сильные стороны:",
+                reply_markup=skip_keyboard
+            )
     await state.set_state(ReflectionV31States.section_strengths)
     
     await callback_query.answer()
