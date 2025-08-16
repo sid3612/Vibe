@@ -45,6 +45,9 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
   * **CVR exclusion**: CVR changes do not trigger reflection forms as per specification
   * **State management fix**: Resolved issue where bot stayed in number input state after wizard completion
   * **Handler conflict resolution**: Fixed StateFilter(None) handler that was causing unwanted error messages
+  * **Message editing error fix**: Resolved Telegram "message can't be edited" errors by proper type detection
+  * **ValueError handler improvement**: Enhanced error handlers with state validation to prevent unwanted responses
+  * **Complete UI flow fix**: All wizard completion scenarios now flow correctly to reflection or main menu
 
 ## User Preferences
 

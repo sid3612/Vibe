@@ -194,9 +194,15 @@ async def show_main_menu(user_id: int, message_or_query):
         [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
     ])
     
-    if hasattr(message_or_query, 'edit_text'):
-        await message_or_query.edit_text(menu_text, reply_markup=keyboard)
+    # Check if it's a callback query that can be edited
+    if hasattr(message_or_query, 'message') and hasattr(message_or_query, 'edit_text'):
+        try:
+            await message_or_query.edit_text(menu_text, reply_markup=keyboard)
+        except:
+            # If edit fails, send new message
+            await message_or_query.message.answer(menu_text, reply_markup=keyboard)
     else:
+        # It's a regular message, send new message
         await message_or_query.answer(menu_text, reply_markup=keyboard)
 
 @dp.callback_query()
@@ -930,7 +936,8 @@ async def process_rejections(message: types.Message, state: FSMContext):
             await show_main_menu(user_id, message)
         
     except ValueError:
-        await message.answer("❌ Введите число")
+        # Only respond with error if still in the rejections state
+        await message.answer("❌ Введите число от 0 до 999 для отклонений")
 
 @dp.message(FunnelStates.edit_entering_value)
 async def process_edit_value(message: types.Message, state: FSMContext):
@@ -953,7 +960,7 @@ async def process_edit_value(message: types.Message, state: FSMContext):
         await show_main_menu(user_id, message)
         
     except ValueError:
-        await message.answer("❌ Введите число")
+        await message.answer("❌ Введите число для редактирования")
 
 async def show_main_menu_new_message(user_id: int, message):
     """Deprecated - use show_main_menu instead"""
