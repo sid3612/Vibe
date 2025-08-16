@@ -38,7 +38,7 @@ def register_v31_reflection_handlers(dp):
         handle_reflection_v31_yes, handle_reflection_v31_no, handle_reflection_v31_cancel,
         handle_section_rating, handle_section_strengths, handle_section_weaknesses, 
         handle_section_mood, handle_rejection_reasons, handle_rejection_other,
-        ReflectionV31States
+        handle_skip_strengths, handle_skip_weaknesses, ReflectionV31States
     )
     from aiogram.filters import StateFilter
     from aiogram import F
@@ -72,6 +72,15 @@ def register_v31_reflection_handlers(dp):
     @dp.callback_query(F.data == "reasons_v31_done")
     async def _handle_reasons_done(callback: types.CallbackQuery, state: FSMContext):
         await handle_rejection_reasons(callback, state)
+    
+    # Skip button handlers
+    @dp.callback_query(F.data == "skip_strengths")
+    async def _handle_skip_strengths(callback: types.CallbackQuery, state: FSMContext):
+        await handle_skip_strengths(callback, state)
+        
+    @dp.callback_query(F.data == "skip_weaknesses") 
+    async def _handle_skip_weaknesses(callback: types.CallbackQuery, state: FSMContext):
+        await handle_skip_weaknesses(callback, state)
     
     # Text message handlers for reflection states - aiogram v3 style
     @dp.message(ReflectionV31States.section_strengths, F.text)

@@ -316,24 +316,34 @@ async def handle_section_rating(callback_query: types.CallbackQuery, state: FSMC
     
     await state.update_data(current_form_data=form_data)
     
-    # Ask for strengths
+    # Ask for strengths with skip button
+    skip_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Пропустить", callback_data="skip_strengths")]
+    ])
+    
     if hasattr(callback_query.message, 'edit_text'):
         await callback_query.message.edit_text(
             f"Оценка: {rating}/5\n\n"
-            f"Отмеченные сильные стороны (или отправьте 'пропустить'):"
+            f"Отмеченные сильные стороны:",
+            reply_markup=skip_keyboard
         )
     await state.set_state(ReflectionV31States.section_strengths)
     await callback_query.answer()
 
-async def handle_section_strengths(message: types.Message, state: FSMContext):
-    """Handle strengths input for current section"""
-    if not message.text:
-        await message.answer("❌ Пожалуйста, введите текст или 'пропустить'")
-        return
-        
-    strengths = message.text.strip() if message.text.lower() != 'пропустить' else None
-    
-    # Save strengths to current section
+async def handle_skip_strengths(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle skip strengths button"""
+    await save_section_field(state, 'strengths', None)
+    await ask_weaknesses(callback_query.message, state)
+    await callback_query.answer()
+
+async def handle_skip_weaknesses(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle skip weaknesses button"""
+    await save_section_field(state, 'weaknesses', None)
+    await ask_mood_rating(callback_query.message, state)
+    await callback_query.answer()
+
+async def save_section_field(state: FSMContext, field_name: str, value):
+    """Save a field to the current section"""
     data = await state.get_data()
     sections = data.get('current_sections', [])
     section_index = data.get('current_section_index', 0)
@@ -341,12 +351,44 @@ async def handle_section_strengths(message: types.Message, state: FSMContext):
     
     current_section = sections[section_index]
     section_key = f"section_{current_section['stage']}"
-    form_data[section_key]['strengths'] = strengths
+    form_data[section_key][field_name] = value
     
     await state.update_data(current_form_data=form_data)
+
+async def ask_weaknesses(message: types.Message, state: FSMContext):
+    """Ask for weaknesses with skip button"""
+    skip_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Пропустить", callback_data="skip_weaknesses")]
+    ])
     
-    # Ask for weaknesses
-    await message.answer("Отмеченные слабые стороны / пробелы (или отправьте 'пропустить'):")
+    await message.edit_text("Отмеченные слабые стороны / пробелы:", reply_markup=skip_keyboard)
+    await state.set_state(ReflectionV31States.section_weaknesses)
+
+async def ask_mood_rating(message: types.Message, state: FSMContext):
+    """Ask for mood rating"""
+    await message.edit_text(
+        "Самочувствие и мотивация после этого этапа (1-5):",
+        reply_markup=ReflectionV31System.get_rating_keyboard()
+    )
+    await state.set_state(ReflectionV31States.section_mood)
+
+async def handle_section_strengths(message: types.Message, state: FSMContext):
+    """Handle strengths input for current section"""
+    if not message.text:
+        await message.answer("❌ Пожалуйста, введите текст")
+        return
+        
+    strengths = message.text.strip()
+    
+    # Save strengths to current section
+    await save_section_field(state, 'strengths', strengths)
+    
+    # Ask for weaknesses with skip button
+    skip_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Пропустить", callback_data="skip_weaknesses")]
+    ])
+    
+    await message.answer("Отмеченные слабые стороны / пробелы:", reply_markup=skip_keyboard)
     await state.set_state(ReflectionV31States.section_weaknesses)
 
 async def handle_section_weaknesses(message: types.Message, state: FSMContext):
@@ -484,8 +526,9 @@ async def handle_rejection_other(message: types.Message, state: FSMContext):
     
     await state.update_data(current_form_data=form_data)
     
-    # Move to next section
-    await move_to_next_section(message, state)
+    # Move to next section - send new message instead of editing
+    await message.answer("✅ Причина отказа сохранена. Переходим к следующей секции...")
+    await move_to_next_section_new_message(message, state)
 
 async def save_rejection_reasons_and_continue(message: types.Message, state: FSMContext, selected_reasons: List[str]):
     """Save rejection reasons and continue to next section"""
@@ -514,6 +557,71 @@ async def move_to_next_section(message: types.Message, state: FSMContext):
     # Process next section
     await process_next_section(message, state)
 
+async def move_to_next_section_new_message(message: types.Message, state: FSMContext):
+    """Move to the next section in the form - using new message instead of edit"""
+    data = await state.get_data()
+    section_index = data.get('current_section_index', 0)
+    
+    # Increment section index
+    await state.update_data(current_section_index=section_index + 1)
+    
+    # Process next section with new message
+    await process_next_section_new_message(message, state)
+
+async def process_next_section_new_message(message: types.Message, state: FSMContext):
+    """Process the next section in the combined form - using new message"""
+    data = await state.get_data()
+    sections = data.get('current_sections', [])
+    section_index = data.get('current_section_index', 0)
+    
+    if section_index >= len(sections):
+        # All sections completed - save and finish
+        await save_and_complete_form_new_message(message, state)
+        return
+    
+    current_section = sections[section_index]
+    stage_display = current_section.get('stage_display', ReflectionV31System.get_stage_display(current_section['stage']))
+    delta = current_section['delta']
+    
+    # Show section header and ask for rating
+    context = data.get('reflection_context', {})
+    funnel_type = context.get('funnel_type', '')
+    week_start = context.get('week_start', '')
+    channel = context.get('channel', '')
+    
+    header_text = f"📝 Форма рефлексии\n\n"
+    header_text += f"Неделя: {week_start} • Канал: {channel} • Тип: {funnel_type}\n\n"
+    header_text += f"Секция {section_index + 1}/{len(sections)}: {stage_display} (+{delta})\n\n"
+    header_text += f"Как прошло? Оцените от 1 (очень плохо) до 5 (отлично):"
+    
+    await message.answer(header_text, reply_markup=ReflectionV31System.get_rating_keyboard())
+    await state.set_state(ReflectionV31States.section_rating)
+
+async def save_and_complete_form_new_message(message: types.Message, state: FSMContext):
+    """Save the completed form and finish - using new message"""
+    data = await state.get_data()
+    form_data = data.get('current_form_data', {})
+    sections = data.get('current_sections', [])
+    context = data.get('reflection_context', {})
+    
+    # Save to database
+    success = ReflectionV31System.save_reflection_data(
+        context['user_id'],
+        context['week_start'], 
+        context['channel'],
+        context['funnel_type'],
+        sections,
+        form_data
+    )
+    
+    if success:
+        await message.answer("✅ Форма рефлексии сохранена!")
+    else:
+        await message.answer("❌ Ошибка при сохранении формы рефлексии")
+    
+    # Clear state
+    await state.clear()
+
 async def save_and_complete_form(message: types.Message, state: FSMContext):
     """Save the completed form and finish"""
     data = await state.get_data()
@@ -532,9 +640,9 @@ async def save_and_complete_form(message: types.Message, state: FSMContext):
     )
     
     if success:
-        await message.edit_text("✅ Форма рефлексии сохранена!")
+        await message.answer("✅ Форма рефлексии сохранена!")
     else:
-        await message.edit_text("❌ Ошибка при сохранении формы рефлексии")
+        await message.answer("❌ Ошибка при сохранении формы рефлексии")
     
     # Clear state
     await state.clear()
