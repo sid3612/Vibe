@@ -890,29 +890,37 @@ async def process_rejections(message: types.Message, state: FSMContext):
                 'rejections': value
             }
         
-        # Сохраняем данные с проверкой триггеров
+        # Сохраняем данные и проверяем триггеры рефлексии после завершения всего мастера
         channel = data.get('selected_channel')
         
-        # Get old data before adding new
+        # Get old data before adding new for reflection trigger calculation
         old_data_dict = {}
         existing_data = get_week_data(user_id, week_start, channel, funnel_type)
         if existing_data:
             old_data_dict = dict(existing_data)
         
+        # Save the data
         add_week_data(user_id, week_start, channel, funnel_type, week_data, check_triggers=False)
         
-        # Calculate new data after addition for trigger checking
-        new_data_dict = old_data_dict.copy()
-        for key, value in week_data.items():
-            new_data_dict[key] = new_data_dict.get(key, 0) + value
-        
-        # Check for reflection triggers
-        triggers = ReflectionTrigger.check_triggers(user_id, week_start, channel, funnel_type, old_data_dict, new_data_dict)
+        # Calculate new totals after data addition
+        new_data_record = get_week_data(user_id, week_start, channel, funnel_type)
+        new_data_dict = dict(new_data_record) if new_data_record else {}
         
         await message.answer(f"✅ Данные успешно сохранены для канала {channel} за неделю {week_start}!")
         await state.clear()
         
-        # Offer reflection form if triggers detected
+        # Check for reflection triggers ONLY for the 5 statistical fields
+        statistical_fields = ['responses', 'screenings', 'onsites', 'offers', 'rejections']
+        triggers = []
+        
+        for field in statistical_fields:
+            old_value = old_data_dict.get(field, 0)
+            new_value = new_data_dict.get(field, 0)
+            delta = new_value - old_value
+            if delta > 0:
+                triggers.append((field, delta))
+        
+        # Offer reflection form if any statistical field increased
         if triggers:
             await ReflectionTrigger.offer_reflection_form(message, user_id, week_start, channel, funnel_type, triggers)
         
