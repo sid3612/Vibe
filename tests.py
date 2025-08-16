@@ -153,6 +153,33 @@ class TestBotFunctionality(unittest.TestCase):
         metrics = calculate_cvr_metrics(week_data, 'passive')
         self.assertEqual(metrics['cvr1'], '10%')  # 5/50
         self.assertEqual(metrics['cvr2'], '60%')  # 3/5
+    
+    def test_improved_prompts_integration(self):
+        """Test that improved prompts don't break functionality"""
+        # This test ensures the new clearer field names don't affect data storage
+        add_channel(self.test_user_id, "TestChannel")
+        
+        # Simulate step-by-step input with new prompts
+        week_data = {
+            'applications': 15,  # количество подач резюме (Applications)
+            'responses': 8,      # количество ответов от компаний (Responses)
+            'screenings': 5,     # количество первичных звонков/скринингов (Screenings)
+            'onsites': 3,        # количество основных интервью (Onsites)
+            'offers': 2,         # количество полученных офферов (Offers)
+            'rejections': 1      # количество отказов (Rejections)
+        }
+        
+        add_week_data(self.test_user_id, "2025-08-16", "TestChannel", "active", week_data)
+        
+        # Verify data is stored correctly despite prompt changes
+        history = get_user_history(self.test_user_id)
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]['applications'], 15)
+        self.assertEqual(history[0]['responses'], 8)
+        self.assertEqual(history[0]['screenings'], 5)
+        self.assertEqual(history[0]['onsites'], 3)
+        self.assertEqual(history[0]['offers'], 2)
+        self.assertEqual(history[0]['rejections'], 1)
 
 if __name__ == '__main__':
     unittest.main()

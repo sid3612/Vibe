@@ -218,14 +218,21 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
         user_data = get_user_funnels(user_id)
         funnel_type = user_data.get('active_funnel', 'active')
         
+        # Получаем текущую неделю для отображения
+        from datetime import datetime, timedelta
+        today = datetime.now()
+        monday = today - timedelta(days=today.weekday())
+        week_start = monday.strftime('%Y-%m-%d')
+        week_end = (monday + timedelta(days=6)).strftime('%Y-%m-%d')
+        
         await state.update_data(selected_channel=channel, funnel_type=funnel_type)
         
         if funnel_type == 'active':
-            field_name = "подачи (applications)"
+            field_name = "количество подач резюме (Applications)"
         else:
-            field_name = "просмотры (views)"
+            field_name = "количество просмотров профиля (Views)"
         
-        text = f"📊 Канал: {channel}\n\nВведите количество {field_name}:"
+        text = f"📊 Канал: {channel}\n📅 Неделя: {week_start} - {week_end}\n\nВведите {field_name}:"
         await query.message.edit_text(text)
         await state.set_state(FunnelStates.entering_applications)
         
@@ -597,12 +604,12 @@ async def process_applications(message: types.Message, state: FSMContext):
         
         if funnel_type == 'active':
             await state.update_data(applications=value)
-            field_name = "ответы (responses)"
+            field_name = "количество ответов от компаний (Responses)"
         else:
             await state.update_data(views=value)
-            field_name = "входящие (incoming)"
+            field_name = "количество обращений от компаний (Incoming)"
             
-        await message.answer(f"✅ Сохранено\n\nТеперь введите количество {field_name}:")
+        await message.answer(f"✅ Сохранено\n\nТеперь введите {field_name}:")
         await state.set_state(FunnelStates.entering_responses)
     except ValueError:
         await message.answer("❌ Введите число")
@@ -620,7 +627,7 @@ async def process_responses(message: types.Message, state: FSMContext):
         else:
             await state.update_data(incoming=value)
             
-        await message.answer(f"✅ Сохранено\n\nТеперь введите количество скрининги (screenings):")
+        await message.answer(f"✅ Сохранено\n\nТеперь введите количество первичных звонков/скринингов (Screenings):")
         await state.set_state(FunnelStates.entering_screenings)
     except ValueError:
         await message.answer("❌ Введите число")
@@ -632,7 +639,7 @@ async def process_screenings(message: types.Message, state: FSMContext):
         value = int(message.text.strip())
         await state.update_data(screenings=value)
             
-        await message.answer(f"✅ Сохранено\n\nТеперь введите количество онсайты (onsites):")
+        await message.answer(f"✅ Сохранено\n\nТеперь введите количество основных интервью (Onsites)\n(Если у одной компании несколько интервью — считайте это за 1):")
         await state.set_state(FunnelStates.entering_onsites)
     except ValueError:
         await message.answer("❌ Введите число")
@@ -644,7 +651,7 @@ async def process_onsites(message: types.Message, state: FSMContext):
         value = int(message.text.strip())
         await state.update_data(onsites=value)
             
-        await message.answer(f"✅ Сохранено\n\nТеперь введите количество офферы (offers):")
+        await message.answer(f"✅ Сохранено\n\nТеперь введите количество полученных офферов (Offers):")
         await state.set_state(FunnelStates.entering_offers)
     except ValueError:
         await message.answer("❌ Введите число")
@@ -656,7 +663,7 @@ async def process_offers(message: types.Message, state: FSMContext):
         value = int(message.text.strip())
         await state.update_data(offers=value)
             
-        await message.answer(f"✅ Сохранено\n\nНаконец, введите количество реджекты (rejections):")
+        await message.answer(f"✅ Сохранено\n\nНаконец, введите количество отказов (Rejections):")
         await state.set_state(FunnelStates.entering_rejections)
     except ValueError:
         await message.answer("❌ Введите число")

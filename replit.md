@@ -4,6 +4,14 @@
 
 Job Funnel Coach is a Telegram bot designed to help users track and analyze job search funnels with automated CVR (Conversion Rate) metrics calculation. The bot supports two types of job search approaches: active (applications) and passive (profile views), allowing users to manage multiple channels (LinkedIn, HH.ru, referrals, etc.) and track their progress over time. The primary goal is to measure progress through the key metric of offers received over N weeks, with comprehensive data export capabilities and reminder functionality.
 
+## Recent Changes (August 2025)
+
+- **UTF-8 CSV Export**: Fixed CSV export to include UTF-8 BOM for proper Excel compatibility
+- **Table Formatting**: Expanded table width to prevent CVR4 column overflow (65→70 chars)
+- **Enhanced Data Input UX**: Added week information display and clearer field descriptions
+- **Step-by-Step Flow**: Improved prompts with descriptive field names for better user understanding
+- **Comprehensive Testing**: Added regression testing framework to prevent future issues
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
