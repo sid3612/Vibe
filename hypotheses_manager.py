@@ -29,6 +29,50 @@ class HypothesesManager:
         self.excel_file_path = excel_file_path
         self.hypotheses_data = None
         
+        # Встроенные гипотезы на случай отсутствия Excel файла
+        self.built_in_hypotheses = {
+            'H1': {
+                'id': 'H1',
+                'title': 'Позиционирование профиля',
+                'cvr_focus': 'CVR1 (Подачи → Ответы)',
+                'question': 'Соответствует ли ваш профиль ожиданиям работодателей?',
+                'actions': 'Оптимизация резюме, профиля LinkedIn, сопроводительных писем',
+                'effect': 'Увеличение количества ответов на подачи'
+            },
+            'H2': {
+                'id': 'H2', 
+                'title': 'Каналы поиска',
+                'cvr_focus': 'CVR1-CVR2 (Подачи → Ответы → Скрининги)',
+                'question': 'Используете ли вы правильные каналы для вашей роли?',
+                'actions': 'Диверсификация каналов, фокус на нишевых площадках',
+                'effect': 'Улучшение качества откликов и прохождения скрининга'
+            },
+            'H3': {
+                'id': 'H3',
+                'title': 'Подготовка к скринингу',
+                'cvr_focus': 'CVR2-CVR3 (Скрининги → Онсайты)',
+                'question': 'Готовы ли вы к первичным разговорам с HR?',
+                'actions': 'Подготовка elevator pitch, отработка частых вопросов',
+                'effect': 'Увеличение прохождения на технические интервью'
+            },
+            'H4': {
+                'id': 'H4',
+                'title': 'Техническая подготовка',
+                'cvr_focus': 'CVR3 (Онсайты → Офферы)',
+                'question': 'Достаточна ли ваша техническая подготовка?',
+                'actions': 'Изучение кейсов, решение задач, подготовка портфолио',
+                'effect': 'Повышение успешности на технических интервью'
+            },
+            'H5': {
+                'id': 'H5',
+                'title': 'Переговоры об оффере',
+                'cvr_focus': 'CVR4 (Онсайты → Офферы)',
+                'question': 'Умеете ли вы правильно завершать интервью?',
+                'actions': 'Подготовка вопросов компании, техники закрытия',
+                'effect': 'Увеличение конверсии в офферы'
+            }
+        }
+        
     def load_hypotheses(self) -> Optional[pd.DataFrame]:
         """
         Загрузить гипотезы из Excel файла
@@ -127,6 +171,38 @@ class HypothesesManager:
 4. Ожидаемый результат
 """
         return prompt
+    
+    def get_hypothesis(self, hypothesis_id: str) -> Optional[Dict]:
+        """
+        Получить гипотезу по ID
+        
+        Args:
+            hypothesis_id: ID гипотезы (например, 'H1', 'H2', и т.д.)
+            
+        Returns:
+            Словарь с данными гипотезы или None если не найдена
+        """
+        # Сначала пытаемся найти в загруженных из Excel данных
+        if self.hypotheses_data is not None:
+            try:
+                # Предполагаем, что первый столбец содержит ID гипотез
+                matching_rows = self.hypotheses_data[self.hypotheses_data.iloc[:, 0] == hypothesis_id]
+                if not matching_rows.empty:
+                    row = matching_rows.iloc[0]
+                    return {
+                        'id': hypothesis_id,
+                        'title': row.iloc[1] if len(row) > 1 else 'Без названия',
+                        'description': row.iloc[2] if len(row) > 2 else 'Без описания',
+                        'cvr_focus': row.iloc[3] if len(row) > 3 else 'Общий',
+                        'question': row.iloc[4] if len(row) > 4 else 'Нет вопроса',
+                        'actions': row.iloc[5] if len(row) > 5 else 'Нет действий',
+                        'effect': row.iloc[6] if len(row) > 6 else 'Нет описания эффекта'
+                    }
+            except Exception as e:
+                print(f"Ошибка при поиске гипотезы в Excel: {e}")
+        
+        # Если не найдено в Excel или Excel не загружен, используем встроенные
+        return self.built_in_hypotheses.get(hypothesis_id)
     
     def _calculate_avg_cvr(self, metrics: List[Dict], cvr_field: str) -> float:
         """Рассчитать средний CVR"""
