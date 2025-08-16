@@ -1038,21 +1038,15 @@ async def start_optional_fields_flow(message, state: FSMContext):
 
 async def start_salary_flow(message, state: FSMContext):
     """Start salary expectations collection"""
-    if hasattr(message, 'edit_text'):
-        await message.edit_text(
-            "Укажите минимальную зарплату (только число):",
-            reply_markup=get_skip_back_keyboard()
-        )
-    else:
-        await message.answer(
-            "Укажите минимальную зарплату (только число):",
-            reply_markup=get_skip_back_keyboard()
-        )
+    await message.answer(
+        "Укажите минимальную зарплату (только число):",
+        reply_markup=get_skip_back_keyboard()
+    )
     await state.set_state(ProfileStates.salary_min)
 
 async def start_company_types_flow(message, state: FSMContext):
     """Start company types selection"""
-    await message.edit_text(
+    await message.answer(
         "Выберите типы компаний (можно выбрать несколько):",
         reply_markup=get_company_types_keyboard()
     )
@@ -1060,7 +1054,7 @@ async def start_company_types_flow(message, state: FSMContext):
 
 async def start_industries_flow(message, state: FSMContext):
     """Start industries collection"""
-    await message.edit_text(
+    await message.answer(
         "Укажите интересные индустрии (до 3, через запятую):\n"
         "Например: Fintech, E-commerce, Healthtech",
         reply_markup=get_skip_back_keyboard()
@@ -1069,7 +1063,7 @@ async def start_industries_flow(message, state: FSMContext):
 
 async def start_competencies_flow(message, state: FSMContext):
     """Start competencies collection"""
-    await message.edit_text(
+    await message.answer(
         "Укажите ключевые компетенции (до 10, через запятую):\n"
         "Например: Python, Django, PostgreSQL, Docker",
         reply_markup=get_skip_back_keyboard()
@@ -1078,7 +1072,7 @@ async def start_competencies_flow(message, state: FSMContext):
 
 async def start_superpowers_flow(message, state: FSMContext):
     """Start superpowers collection"""
-    await message.edit_text(
+    await message.answer(
         "Опишите ваши суперсилы (3-5, через запятую):\n"
         "Например: Быстрое обучение, Системное мышление, Лидерство",
         reply_markup=get_skip_back_keyboard()
@@ -1087,7 +1081,7 @@ async def start_superpowers_flow(message, state: FSMContext):
 
 async def start_constraints_flow(message, state: FSMContext):
     """Start constraints collection"""
-    await message.edit_text(
+    await message.answer(
         "Укажите дополнительные ограничения или требования:",
         reply_markup=get_skip_back_keyboard()
     )
