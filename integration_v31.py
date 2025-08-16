@@ -10,7 +10,7 @@ from db import add_week_data
 
 async def handle_week_data_with_v31_reflection(message: types.Message, user_id: int, 
                                              week_start: str, channel: str, funnel_type: str,
-                                             new_data: dict, state: FSMContext = None):
+                                             new_data: dict, state: FSMContext):
     """
     Enhanced week data handler that checks for PRD v3.1 reflection triggers
     This should be called after week data is successfully processed
@@ -26,7 +26,17 @@ async def handle_week_data_with_v31_reflection(message: types.Message, user_id: 
     # Check for reflection triggers using PRD v3.1 logic
     sections = ReflectionV31System.check_reflection_trigger(user_id, week_start, channel, funnel_type, old_data, updated_data)
     
-    if sections:
+    if sections and state:
+        # Store state data for reflection form
+        await state.update_data(
+            reflection_sections=sections,
+            reflection_context={
+                'user_id': user_id,
+                'week_start': week_start,
+                'channel': channel,
+                'funnel_type': funnel_type
+            }
+        )
         # Offer reflection form to user
         await ReflectionV31System.offer_reflection_form(
             message, user_id, week_start, channel, funnel_type, sections

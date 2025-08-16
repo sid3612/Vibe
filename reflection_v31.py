@@ -223,24 +223,34 @@ class ReflectionV31System:
 # Handlers for PRD v3.1 reflection system
 async def handle_reflection_v31_yes(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle 'Yes' for reflection form offer"""
+    print(f"🎯 handle_reflection_v31_yes вызван для пользователя {callback_query.from_user.id}")
+    
     if not callback_query.message:
         await callback_query.answer("Ошибка: сообщение недоступно")
         return
         
     data = await state.get_data()
+    print(f"🔍 State data: {data}")
+    
     sections = data.get('reflection_sections', [])
     context = data.get('reflection_context', {})
     
+    print(f"📋 Sections: {len(sections)}, Context: {context}")
+    
     if not sections:
         await callback_query.answer("Ошибка: нет данных о секциях")
+        print("❌ Нет sections в state data")
         return
     
     # Start combined form - show first section
     if callback_query.message:
         try:
+            print(f"🚀 Запускаем combined form с {len(sections)} секциями")
             await start_combined_reflection_form(callback_query.message, state, sections, context)
         except Exception as e:
-            print(f"Ошибка запуска формы рефлексии: {e}")
+            print(f"❌ Ошибка запуска формы рефлексии: {e}")
+            import traceback
+            traceback.print_exc()
             await callback_query.answer("Ошибка запуска формы рефлексии")
     await callback_query.answer()
 

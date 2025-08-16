@@ -1197,9 +1197,6 @@ async def process_rejections(message: types.Message, state: FSMContext):
         new_data_record = get_week_data(user_id, week_start, channel, funnel_type)
         new_data_dict = dict(new_data_record) if new_data_record else {}
         
-        # Clear state FIRST to prevent staying in input mode
-        await state.clear()
-        
         await message.answer(f"✅ Данные успешно сохранены для канала {channel} за неделю {week_start}!")
         
         # Check for reflection triggers using PRD v3.1 system
@@ -1208,10 +1205,21 @@ async def process_rejections(message: types.Message, state: FSMContext):
         sections = ReflectionV31System.check_reflection_trigger(user_id, week_start, channel, funnel_type, old_data_dict, new_data_dict)
         
         if sections:
+            # Store state data for reflection form before clearing and offering
+            await state.update_data(
+                reflection_sections=sections,
+                reflection_context={
+                    'user_id': user_id,
+                    'week_start': week_start,
+                    'channel': channel,
+                    'funnel_type': funnel_type
+                }
+            )
             # Offer reflection form using PRD v3.1 system
             await ReflectionV31System.offer_reflection_form(message, user_id, week_start, channel, funnel_type, sections)
         else:
-            # Show main menu after data addition
+            # Clear state and show main menu after data addition
+            await state.clear()
             await show_main_menu(user_id, message)
         
     except ValueError:

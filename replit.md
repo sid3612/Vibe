@@ -6,7 +6,16 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
 
 ## Recent Changes (August 2025)
 
-### CVR Auto-Analysis Button-Triggered System (August 16, 2025)
+### Button Fixes and State Management (August 16, 2025)
+- **Critical FSM State Fix**: Resolved reflection form button issue by correcting state management sequence
+- **CVR Button Fix**: Fixed "🎯 Анализ CVR" asyncio.run() error by using async handler version
+- **Callback Filter Fix**: Removed blocking filter for reflection_v31_ prefixed callbacks from main handler
+- **State Lifecycle Management**: Fixed order of operations - state data now saved before offering reflection forms
+- **Comprehensive Testing**: Full regression testing framework validates all button interactions
+- **Debug Logging**: Added detailed logging to reflection handlers for troubleshooting
+- **Error Handling**: Enhanced try/catch blocks with fallback mechanisms for message operations
+
+### CVR Auto-Analysis Button-Triggered System (August 16, 2025)  
 - **Iteration 4 Implementation**: Fully integrated CVR problem detection and ChatGPT recommendations with user-controlled triggering
 - **Manual Trigger**: Changed from automatic to button-triggered analysis - users click "🎯 Анализ CVR" in main menu
 - **CVR Threshold Detection**: Automatic identification of CVR problems when conversion rates drop below 10% with denominator ≥ 5
