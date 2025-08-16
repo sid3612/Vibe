@@ -1045,18 +1045,19 @@ async def start_optional_fields_flow(message, state: FSMContext):
 async def start_salary_flow(message, state: FSMContext):
     """Start salary expectations collection"""
     await message.answer(
-        "Диапазон ЗП — вилка зарплаты (min–max + валюта + период):\n"
-        "Введите в формате: 60000-70000 EUR/год\n"
-        "Пример: 5000-8000 USD/месяц",
+        "Диапазон ЗП — зарплатные ожидания (число или диапазон + валюта + период):\n"
+        "Примеры: 60000 EUR/год, 60000-70000 EUR/год, 5000-8000 USD/месяц",
         reply_markup=get_skip_back_keyboard()
     )
     await state.set_state(ProfileStates.salary_min)
 
 async def start_company_types_flow(message, state: FSMContext):
-    """Start company types selection"""
+    """Start company types collection"""
     await message.answer(
-        "Типы компаний — где вы хотите работать (можно выбрать несколько):",
-        reply_markup=get_company_types_keyboard()
+        "Типы компаний — где вы хотите работать (можно выбрать несколько, через запятую):\n"
+        "Варианты: SMB, Scale-up, Enterprise, Consulting\n"
+        "Пример: SMB, Scale-up",
+        reply_markup=get_skip_back_keyboard()
     )
     await state.set_state(ProfileStates.company_types)
 
@@ -1155,64 +1156,55 @@ async def process_role_synonyms(message: types.Message, state: FSMContext):
 
 @dp.message(ProfileStates.salary_min, F.text)
 async def process_salary(message: types.Message, state: FSMContext):
-    """Process salary range in single input"""
+    """Process salary range or single value in single input"""
     salary_text = message.text.strip()
     
-    # Parse formats like "60000-70000 EUR/год" or "5000-8000 USD/месяц"
+    # Parse formats like "60000 EUR/год", "60000-70000 EUR/год" or "5000-8000 USD/месяц"
     try:
-        # Extract min-max values
-        if '-' in salary_text:
-            parts = salary_text.split()
-            range_part = parts[0]
-            currency_period = ' '.join(parts[1:]) if len(parts) > 1 else 'EUR/год'
+        parts = salary_text.split()
+        if len(parts) < 2:
+            await message.answer("Введите зарплату с валютой и периодом.\nПримеры: 60000 EUR/год, 60000-70000 EUR/год")
+            return
             
+        range_part = parts[0]
+        currency_period = ' '.join(parts[1:])
+        
+        # Extract currency and period
+        if '/' in currency_period:
+            currency, period = currency_period.split('/')
+            currency = currency.strip()
+            period = period.strip()
+        else:
+            currency = currency_period.strip() or 'EUR'
+            period = 'год'
+        
+        # Handle both single value and range
+        if '-' in range_part:
             min_val, max_val = range_part.split('-')
             salary_min = float(min_val.strip())
             salary_max = float(max_val.strip())
-            
-            # Extract currency and period
-            if '/' in currency_period:
-                currency, period = currency_period.split('/')
-                currency = currency.strip()
-                period = period.strip()
-            else:
-                currency = currency_period.strip() or 'EUR'
-                period = 'год'
-            
-            await state.update_data(
-                salary_min=salary_min,
-                salary_max=salary_max,
-                salary_currency=currency,
-                salary_period=period
-            )
-            await start_company_types_flow(message, state)
         else:
-            await message.answer("Введите в формате: 60000-70000 EUR/год")
+            # Single value - use as both min and max
+            salary_min = salary_max = float(range_part.strip())
+        
+        await state.update_data(
+            salary_min=salary_min,
+            salary_max=salary_max,
+            salary_currency=currency,
+            salary_period=period
+        )
+        await start_company_types_flow(message, state)
+        
     except (ValueError, IndexError):
-        await message.answer("Введите в формате: 60000-70000 EUR/год\nПример: 5000-8000 USD/месяц")
+        await message.answer("Введите в правильном формате.\nПримеры: 60000 EUR/год, 60000-70000 EUR/год, 5000-8000 USD/месяц")
 
-# Company types callback handler  
-@dp.callback_query(ProfileStates.company_types, F.data.startswith("company_"))
-async def process_company_types(query: types.CallbackQuery, state: FSMContext):
-    """Handle company type selection"""
-    data = await state.get_data()
-    company_types = data.get('company_types', [])
-    
-    company_type = query.data.replace("company_", "")
-    
-    if company_type == "done":
-        await start_industries_flow(query.message, state)
-        return
-    elif company_type in company_types:
-        company_types.remove(company_type)
-    else:
-        company_types.append(company_type)
-    
+@dp.message(ProfileStates.company_types, F.text)
+async def process_company_types(message: types.Message, state: FSMContext):
+    """Process company types input"""
+    company_types_text = message.text.strip()
+    company_types = [s.strip() for s in company_types_text.split(',') if s.strip()]
     await state.update_data(company_types=company_types)
-    
-    # Update keyboard to reflect selections
-    await query.message.edit_reply_markup(reply_markup=get_company_types_keyboard(company_types))
-    await query.answer()
+    await start_industries_flow(message, state)
 
 @dp.message(ProfileStates.industries, F.text)
 async def process_industries(message: types.Message, state: FSMContext):

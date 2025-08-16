@@ -64,7 +64,16 @@ def format_profile_display(profile_data: dict) -> str:
     if profile_data.get('salary_min') and profile_data.get('salary_max'):
         result.append("💰 ЗАРПЛАТНЫЕ ОЖИДАНИЯ")
         result.append("-" * 40)
-        salary_text = f"{profile_data['salary_min']:.0f}-{profile_data['salary_max']:.0f} {profile_data['salary_currency']}/{profile_data['salary_period']}"
+        salary_min = profile_data['salary_min']
+        salary_max = profile_data['salary_max']
+        currency = profile_data.get('salary_currency', 'EUR')
+        period = profile_data.get('salary_period', 'год')
+        
+        # Show single value if min == max
+        if salary_min == salary_max:
+            salary_text = f"{salary_min:.0f} {currency}/{period}"
+        else:
+            salary_text = f"{salary_min:.0f}-{salary_max:.0f} {currency}/{period}"
         result.append(salary_text)
         result.append("")
     
@@ -97,31 +106,19 @@ def format_profile_display(profile_data: dict) -> str:
         if superpowers:
             result.append("⚡ КАРТА СУПЕРСИЛ")
             result.append("-" * 40)
-            result.append(", ".join(superpowers))
+            for i, power in enumerate(superpowers, 1):
+                result.append(f"{i}. {power}")
             result.append("")
     
     if profile_data.get('constraints'):
-        result.append("⚠️ ОГРАНИЧЕНИЯ")
+        result.append("🔒 ОГРАНИЧЕНИЯ И РАМКИ")
         result.append("-" * 40)
         result.append(profile_data['constraints'])
         result.append("")
-        result.append("")
     
-    if profile_data.get('company_types_json'):
-        company_types = json.loads(profile_data['company_types_json'])
-        if company_types:
-            result.append("🏢 ТИПЫ КОМПАНИЙ")
-            result.append("-" * 40)
-            result.append(", ".join(company_types))
-            result.append("")
+    # Note: Don't duplicate company_types - it's already shown above
     
-    if profile_data.get('industries_json'):
-        industries = json.loads(profile_data['industries_json'])
-        if industries:
-            result.append("🔧 ИНДУСТРИИ")
-            result.append("-" * 40)
-            result.append(", ".join(industries))
-            result.append("")
+    return "\n".join(result)
     
     if profile_data.get('competencies_json'):
         competencies = json.loads(profile_data['competencies_json'])
