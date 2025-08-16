@@ -922,7 +922,7 @@ async def process_week_data(message: types.Message, state: FSMContext):
 """
             
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
+                [InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu")],
                 [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
                 [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
                 [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
@@ -1137,13 +1137,12 @@ async def show_main_menu_new_message(user_id: int, message):
 """
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
+        [InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu")],
         [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
         [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
         [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
         [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")],
         [InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")],
-        [InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu")],
         [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
         [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
     ])
