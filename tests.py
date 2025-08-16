@@ -17,9 +17,30 @@ class TestBotFunctionality(unittest.TestCase):
     def setUp(self):
         """Set up test database"""
         init_db()
+        # Clean up any existing test data
+        self.cleanup_test_data()
         # Test user
         self.test_user_id = 999999
         add_user(self.test_user_id, "test_user")
+    
+    def cleanup_test_data(self):
+        """Clean up test data"""
+        import sqlite3
+        conn = sqlite3.connect('funnel_coach.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Remove all test users and their data
+        cursor.execute("DELETE FROM week_data WHERE user_id IN (999999, 777777, 666666, 888888)")
+        cursor.execute("DELETE FROM user_channels WHERE user_id IN (999999, 777777, 666666, 888888)")
+        cursor.execute("DELETE FROM users WHERE user_id IN (999999, 777777, 666666, 888888)")
+        
+        conn.commit()
+        conn.close()
+        
+    def tearDown(self):
+        """Clean up after test"""
+        self.cleanup_test_data()
     
     def test_channel_management(self):
         """Test adding and retrieving channels"""
@@ -180,6 +201,50 @@ class TestBotFunctionality(unittest.TestCase):
         self.assertEqual(history[0]['onsites'], 3)
         self.assertEqual(history[0]['offers'], 2)
         self.assertEqual(history[0]['rejections'], 1)
+    
+    def test_data_summing_functionality(self):
+        """Test that duplicate entries for same week/channel are summed"""
+        add_channel(self.test_user_id, "TestSumChannel")
+        
+        # Add first set of data
+        week_data_1 = {
+            'applications': 10,
+            'responses': 5,
+            'screenings': 3,
+            'onsites': 2,
+            'offers': 1,
+            'rejections': 0
+        }
+        
+        add_week_data(self.test_user_id, "2025-08-16", "TestSumChannel", "active", week_data_1)
+        
+        # Add second set of data for same week/channel - should be summed
+        week_data_2 = {
+            'applications': 5,
+            'responses': 2,
+            'screenings': 1,
+            'onsites': 1,
+            'offers': 1,
+            'rejections': 1
+        }
+        
+        add_week_data(self.test_user_id, "2025-08-16", "TestSumChannel", "active", week_data_2)
+        
+        # Verify data is summed correctly, not duplicated
+        history = get_user_history(self.test_user_id)
+        
+        # Should have only 1 record, not 2
+        channel_records = [h for h in history if h['channel_name'] == 'TestSumChannel']
+        self.assertEqual(len(channel_records), 1)
+        
+        # Values should be summed
+        record = channel_records[0]
+        self.assertEqual(record['applications'], 15)  # 10 + 5
+        self.assertEqual(record['responses'], 7)      # 5 + 2
+        self.assertEqual(record['screenings'], 4)     # 3 + 1
+        self.assertEqual(record['onsites'], 3)        # 2 + 1
+        self.assertEqual(record['offers'], 2)         # 1 + 1
+        self.assertEqual(record['rejections'], 1)     # 0 + 1
 
 if __name__ == '__main__':
     unittest.main()

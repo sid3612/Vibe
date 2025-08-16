@@ -169,44 +169,178 @@ def remove_channel(user_id: int, channel_name: str):
     conn.close()
 
 def add_week_data(user_id: int, week_start: str, channel: str, funnel_type: str, data: dict):
-    """Добавить данные за неделю"""
+    """Добавить данные за неделю (суммируя с существующими, если есть)"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Подготавливаем данные для вставки
-    if funnel_type == 'active':
-        cursor.execute("""
-            INSERT OR REPLACE INTO week_data 
-            (user_id, week_start, channel_name, funnel_type, 
-             applications, responses, screenings, onsites, offers, rejections, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        """, (
-            user_id, week_start, channel, funnel_type,
-            data.get('applications', 0),
-            data.get('responses', 0),
-            data.get('screenings', 0),
-            data.get('onsites', 0),
-            data.get('offers', 0),
-            data.get('rejections', 0)
-        ))
-    else:  # passive
-        cursor.execute("""
-            INSERT OR REPLACE INTO week_data 
-            (user_id, week_start, channel_name, funnel_type, 
-             views, incoming, screenings, onsites, offers, rejections, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        """, (
-            user_id, week_start, channel, funnel_type,
-            data.get('views', 0),
-            data.get('incoming', 0),
-            data.get('screenings', 0),
-            data.get('onsites', 0),
-            data.get('offers', 0),
-            data.get('rejections', 0)
-        ))
+    # Проверяем, есть ли уже данные для этой недели/канала/типа воронки
+    cursor.execute("""
+        SELECT * FROM week_data
+        WHERE user_id = ? AND week_start = ? AND channel_name = ? AND funnel_type = ?
+    """, (user_id, week_start, channel, funnel_type))
+    
+    existing = cursor.fetchone()
+    
+    if existing:
+        # Суммируем с существующими данными
+        if funnel_type == 'active':
+            cursor.execute("""
+                UPDATE week_data 
+                SET applications = applications + ?,
+                    responses = responses + ?,
+                    screenings = screenings + ?,
+                    onsites = onsites + ?,
+                    offers = offers + ?,
+                    rejections = rejections + ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ? AND week_start = ? AND channel_name = ? AND funnel_type = ?
+            """, (
+                data.get('applications', 0),
+                data.get('responses', 0),
+                data.get('screenings', 0),
+                data.get('onsites', 0),
+                data.get('offers', 0),
+                data.get('rejections', 0),
+                user_id, week_start, channel, funnel_type
+            ))
+        else:  # passive
+            cursor.execute("""
+                UPDATE week_data 
+                SET views = views + ?,
+                    incoming = incoming + ?,
+                    screenings = screenings + ?,
+                    onsites = onsites + ?,
+                    offers = offers + ?,
+                    rejections = rejections + ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ? AND week_start = ? AND channel_name = ? AND funnel_type = ?
+            """, (
+                data.get('views', 0),
+                data.get('incoming', 0),
+                data.get('screenings', 0),
+                data.get('onsites', 0),
+                data.get('offers', 0),
+                data.get('rejections', 0),
+                user_id, week_start, channel, funnel_type
+            ))
+    else:
+        # Вставляем новую запись
+        if funnel_type == 'active':
+            cursor.execute("""
+                INSERT INTO week_data 
+                (user_id, week_start, channel_name, funnel_type, 
+                 applications, responses, screenings, onsites, offers, rejections, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (
+                user_id, week_start, channel, funnel_type,
+                data.get('applications', 0),
+                data.get('responses', 0),
+                data.get('screenings', 0),
+                data.get('onsites', 0),
+                data.get('offers', 0),
+                data.get('rejections', 0)
+            ))
+        else:  # passive
+            cursor.execute("""
+                INSERT INTO week_data 
+                (user_id, week_start, channel_name, funnel_type, 
+                 views, incoming, screenings, onsites, offers, rejections, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (
+                user_id, week_start, channel, funnel_type,
+                data.get('views', 0),
+                data.get('incoming', 0),
+                data.get('screenings', 0),
+                data.get('onsites', 0),
+                data.get('offers', 0),
+                data.get('rejections', 0)
+            ))
     
     conn.commit()
     conn.close()
+
+def cleanup_duplicate_data():
+    """Очистка дублированных данных - суммирование существующих дубликатов"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Находим все дубликаты
+    cursor.execute("""
+        SELECT user_id, week_start, channel_name, funnel_type, COUNT(*) as count
+        FROM week_data
+        GROUP BY user_id, week_start, channel_name, funnel_type
+        HAVING COUNT(*) > 1
+    """)
+    
+    duplicates = cursor.fetchall()
+    
+    for dup in duplicates:
+        user_id, week_start, channel_name, funnel_type, count = dup
+        
+        # Получаем все записи для этой комбинации
+        cursor.execute("""
+            SELECT * FROM week_data
+            WHERE user_id = ? AND week_start = ? AND channel_name = ? AND funnel_type = ?
+            ORDER BY created_at
+        """, (user_id, week_start, channel_name, funnel_type))
+        
+        records = cursor.fetchall()
+        
+        if len(records) > 1:
+            # Суммируем все значения
+            total_data = {
+                'applications': sum(r['applications'] or 0 for r in records),
+                'responses': sum(r['responses'] or 0 for r in records),
+                'screenings': sum(r['screenings'] or 0 for r in records),
+                'onsites': sum(r['onsites'] or 0 for r in records),
+                'offers': sum(r['offers'] or 0 for r in records),
+                'rejections': sum(r['rejections'] or 0 for r in records),
+                'views': sum(r['views'] or 0 for r in records),
+                'incoming': sum(r['incoming'] or 0 for r in records)
+            }
+            
+            # Удаляем все старые записи
+            cursor.execute("""
+                DELETE FROM week_data
+                WHERE user_id = ? AND week_start = ? AND channel_name = ? AND funnel_type = ?
+            """, (user_id, week_start, channel_name, funnel_type))
+            
+            # Вставляем одну суммированную запись
+            if funnel_type == 'active':
+                cursor.execute("""
+                    INSERT INTO week_data 
+                    (user_id, week_start, channel_name, funnel_type, 
+                     applications, responses, screenings, onsites, offers, rejections, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """, (
+                    user_id, week_start, channel_name, funnel_type,
+                    total_data['applications'],
+                    total_data['responses'],
+                    total_data['screenings'],
+                    total_data['onsites'],
+                    total_data['offers'],
+                    total_data['rejections']
+                ))
+            else:  # passive
+                cursor.execute("""
+                    INSERT INTO week_data 
+                    (user_id, week_start, channel_name, funnel_type, 
+                     views, incoming, screenings, onsites, offers, rejections, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                """, (
+                    user_id, week_start, channel_name, funnel_type,
+                    total_data['views'],
+                    total_data['incoming'],
+                    total_data['screenings'],
+                    total_data['onsites'],
+                    total_data['offers'],
+                    total_data['rejections']
+                ))
+    
+    conn.commit()
+    conn.close()
+    
+    return len(duplicates)
 
 def get_week_data(user_id: int, week_start: str, channel: str, funnel_type: str) -> dict:
     """Получить данные за неделю"""

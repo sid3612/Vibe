@@ -10,6 +10,8 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
 - **Table Formatting**: Expanded table width to prevent CVR4 column overflow (65→70 chars)
 - **Enhanced Data Input UX**: Added week information display and clearer field descriptions
 - **Step-by-Step Flow**: Improved prompts with descriptive field names for better user understanding
+- **Data Deduplication**: Fixed duplicate data issue - same week/channel entries now automatically sum values
+- **Database Cleanup**: Added functionality to clean up existing duplicates and prevent future occurrences
 - **Comprehensive Testing**: Added regression testing framework to prevent future issues
 
 ## User Preferences
