@@ -109,7 +109,7 @@ class ReflectionV31System:
             'screening': '📞 Скрининг',
             'onsite': '🧑‍💼 Онсайт', 
             'offer': '🏁 Оффер',
-            'reject_no_interview': '❌ Реджект без интервью',
+            'reject_no_interview': '❌ Отказ',
             'reject_after_interview': '❌❌ Реджект после интервью'
         }
         return stage_map.get(stage, stage)
@@ -242,8 +242,12 @@ async def handle_reflection_v31_yes(callback_query: types.CallbackQuery, state: 
 
 async def handle_reflection_v31_no(callback_query: types.CallbackQuery):
     """Handle 'No' for reflection form offer"""
+    from main import show_main_menu
+    
     if callback_query.message and hasattr(callback_query.message, 'edit_text'):
         await callback_query.message.edit_text("Хорошо, форма рефлексии пропущена.")
+        # Показываем главное меню
+        await show_main_menu(callback_query.from_user.id, callback_query.message)
     await callback_query.answer()
 
 async def start_combined_reflection_form(message: types.Message, state: FSMContext, 
@@ -283,7 +287,7 @@ async def process_next_section(message: types.Message, state: FSMContext):
     stage_display = current_section.get('stage_display', ReflectionV31System.get_stage_display(current_section['stage']))
     delta = current_section['delta']
     
-    # Show section header and ask for rating
+    # Show section header
     context = data.get('reflection_context', {})
     funnel_type = context.get('funnel_type', '')
     week_start = context.get('week_start', '')
@@ -292,10 +296,23 @@ async def process_next_section(message: types.Message, state: FSMContext):
     header_text = f"📝 Форма рефлексии\n\n"
     header_text += f"Неделя: {week_start} • Канал: {channel} • Тип: {funnel_type}\n\n"
     header_text += f"Секция {section_index + 1}/{len(sections)}: {stage_display} (+{delta})\n\n"
-    header_text += f"Как прошло? Оцените от 1 (очень плохо) до 5 (отлично):"
     
-    await message.edit_text(header_text, reply_markup=ReflectionV31System.get_rating_keyboard())
-    await state.set_state(ReflectionV31States.section_rating)
+    # Check if this is a rejection section - ask for rejection type first
+    if current_section['stage'] == 'reject_no_interview':
+        reject_type_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Отказ", callback_data="reject_type_no_interview")],
+            [InlineKeyboardButton(text="Реджект после интервью с рекрутером", callback_data="reject_type_recruiter")],
+            [InlineKeyboardButton(text="Реджект после тех интервью", callback_data="reject_type_technical")]
+        ])
+        
+        header_text += f"Тип отказа?"
+        await message.edit_text(header_text, reply_markup=reject_type_keyboard)
+        await state.set_state(ReflectionV31States.section_reject_type)
+    else:
+        # For non-rejection sections, ask for rating
+        header_text += f"Как прошло? Оцените от 1 (очень плохо) до 5 (отлично):"
+        await message.edit_text(header_text, reply_markup=ReflectionV31System.get_rating_keyboard())
+        await state.set_state(ReflectionV31States.section_rating)
 
 async def handle_section_rating(callback_query: types.CallbackQuery, state: FSMContext):
     """Handle rating selection for current section"""
@@ -317,34 +334,18 @@ async def handle_section_rating(callback_query: types.CallbackQuery, state: FSMC
     
     await state.update_data(current_form_data=form_data)
     
-    # Check if this is a rejection section - ask for rejection type first
-    if current_section['stage'] == 'reject_no_interview':
-        reject_type_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Реджект без интервью", callback_data="reject_type_no_interview")],
-            [InlineKeyboardButton(text="Реджект после интервью с рекрутером", callback_data="reject_type_recruiter")],
-            [InlineKeyboardButton(text="Реджект после тех интервью", callback_data="reject_type_technical")]
-        ])
-        
-        if hasattr(callback_query.message, 'edit_text'):
-            await callback_query.message.edit_text(
-                f"Оценка: {rating}/5\n\n"
-                f"Тип отказа?",
-                reply_markup=reject_type_keyboard
-            )
-        await state.set_state(ReflectionV31States.section_reject_type)
-    else:
-        # For non-rejection sections, proceed to strengths
-        skip_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Пропустить", callback_data="skip_strengths")]
-        ])
-        
-        if hasattr(callback_query.message, 'edit_text'):
-            await callback_query.message.edit_text(
-                f"Оценка: {rating}/5\n\n"
-                f"Отмеченные сильные стороны:",
-                reply_markup=skip_keyboard
-            )
-        await state.set_state(ReflectionV31States.section_strengths)
+    # For all sections, proceed to strengths after rating
+    skip_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Пропустить", callback_data="skip_strengths")]
+    ])
+    
+    if hasattr(callback_query.message, 'edit_text'):
+        await callback_query.message.edit_text(
+            f"Оценка: {rating}/5\n\n"
+            f"Отмеченные сильные стороны:",
+            reply_markup=skip_keyboard
+        )
+    await state.set_state(ReflectionV31States.section_strengths)
     
     await callback_query.answer()
 
@@ -356,7 +357,7 @@ async def handle_section_reject_type(callback_query: types.CallbackQuery, state:
         
     # Extract rejection type from callback data
     reject_type_map = {
-        "reject_type_no_interview": "Реджект без интервью",
+        "reject_type_no_interview": "Отказ",
         "reject_type_recruiter": "Реджект после интервью с рекрутером", 
         "reject_type_technical": "Реджект после тех интервью"
     }
@@ -375,18 +376,21 @@ async def handle_section_reject_type(callback_query: types.CallbackQuery, state:
     
     await state.update_data(current_form_data=form_data)
     
-    # Now proceed to strengths question
-    skip_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Пропустить", callback_data="skip_strengths")]
-    ])
+    # Now proceed to rating question
+    data = await state.get_data()
+    sections = data.get('current_sections', [])
+    section_index = data.get('current_section_index', 0)
+    current_section = sections[section_index]
+    stage_display = current_section.get('stage_display', ReflectionV31System.get_stage_display(current_section['stage']))
+    delta = current_section['delta']
     
     if hasattr(callback_query.message, 'edit_text'):
         await callback_query.message.edit_text(
             f"Тип отказа: {reject_type}\n\n"
-            f"Отмеченные сильные стороны:",
-            reply_markup=skip_keyboard
+            f"Как прошло? Оцените от 1 (очень плохо) до 5 (отлично):",
+            reply_markup=ReflectionV31System.get_rating_keyboard()
         )
-    await state.set_state(ReflectionV31States.section_strengths)
+    await state.set_state(ReflectionV31States.section_rating)
     await callback_query.answer()
 
 async def handle_skip_strengths(callback_query: types.CallbackQuery, state: FSMContext):
