@@ -20,8 +20,6 @@ from profile import (ProfileStates, format_profile_display)
 import json
 from validators import parse_salary_string, parse_list_input, validate_superpowers
 from keyboards import get_level_keyboard, get_company_types_keyboard, get_skip_back_keyboard, get_back_keyboard, get_profile_actions_keyboard, get_profile_edit_fields_keyboard, get_confirm_delete_keyboard, get_final_review_keyboard
-from reflection_forms import ReflectionTrigger, ReflectionQueue
-from integration_v3 import register_reflection_handlers
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -194,15 +192,9 @@ async def show_main_menu(user_id: int, message_or_query):
         [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
     ])
     
-    # Check if it's a callback query that can be edited
-    if hasattr(message_or_query, 'message') and hasattr(message_or_query, 'edit_text'):
-        try:
-            await message_or_query.edit_text(menu_text, reply_markup=keyboard)
-        except:
-            # If edit fails, send new message
-            await message_or_query.message.answer(menu_text, reply_markup=keyboard)
+    if hasattr(message_or_query, 'edit_text'):
+        await message_or_query.edit_text(menu_text, reply_markup=keyboard)
     else:
-        # It's a regular message, send new message
         await message_or_query.answer(menu_text, reply_markup=keyboard)
 
 @dp.callback_query()
@@ -702,24 +694,8 @@ async def process_week_data(message: types.Message, state: FSMContext):
                         'offers': values[4],
                         'rejections': values[5]
                     }
-                    # Get old data before adding new
-                    old_data_dict = {}
-                    existing_data = get_week_data(user_id, week_start, channel, funnel_type)
-                    if existing_data:
-                        old_data_dict = dict(existing_data)
-                    
-                    add_week_data(user_id, week_start, channel, funnel_type, data, check_triggers=False)
+                    add_week_data(user_id, week_start, channel, funnel_type, data)
                     success_count += 1
-                    
-                    # Calculate new data after addition for trigger checking
-                    new_data_dict = old_data_dict.copy()
-                    for key, value in data.items():
-                        new_data_dict[key] = new_data_dict.get(key, 0) + value
-                    
-                    # Check for reflection triggers
-                    triggers = ReflectionTrigger.check_triggers(user_id, week_start, channel, funnel_type, old_data_dict, new_data_dict)
-                    if triggers:
-                        await ReflectionTrigger.offer_reflection_form(message, user_id, week_start, channel, funnel_type, triggers)
             else:  # passive
                 if len(values) == 6:
                     data = {
@@ -730,24 +706,8 @@ async def process_week_data(message: types.Message, state: FSMContext):
                         'offers': values[4],
                         'rejections': values[5]
                     }
-                    # Get old data before adding new
-                    old_data_dict = {}
-                    existing_data = get_week_data(user_id, week_start, channel, funnel_type)
-                    if existing_data:
-                        old_data_dict = dict(existing_data)
-                    
-                    add_week_data(user_id, week_start, channel, funnel_type, data, check_triggers=False)
+                    add_week_data(user_id, week_start, channel, funnel_type, data)
                     success_count += 1
-                    
-                    # Calculate new data after addition for trigger checking
-                    new_data_dict = old_data_dict.copy()
-                    for key, value in data.items():
-                        new_data_dict[key] = new_data_dict.get(key, 0) + value
-                    
-                    # Check for reflection triggers (excluding views for passive)
-                    triggers = ReflectionTrigger.check_triggers(user_id, week_start, channel, funnel_type, old_data_dict, new_data_dict)
-                    if triggers:
-                        await ReflectionTrigger.offer_reflection_form(message, user_id, week_start, channel, funnel_type, triggers)
         
         if success_count > 0:
             await message.answer(f"✅ Добавлено {success_count} записей за неделю {week_start}")
@@ -896,48 +856,18 @@ async def process_rejections(message: types.Message, state: FSMContext):
                 'rejections': value
             }
         
-        # Сохраняем данные и проверяем триггеры рефлексии после завершения всего мастера
+        # Сохраняем данные
         channel = data.get('selected_channel')
-        
-        # Get old data before adding new for reflection trigger calculation
-        old_data_dict = {}
-        existing_data = get_week_data(user_id, week_start, channel, funnel_type)
-        if existing_data:
-            old_data_dict = dict(existing_data)
-        
-        # Save the data
-        add_week_data(user_id, week_start, channel, funnel_type, week_data, check_triggers=False)
-        
-        # Calculate new totals after data addition
-        new_data_record = get_week_data(user_id, week_start, channel, funnel_type)
-        new_data_dict = dict(new_data_record) if new_data_record else {}
-        
-        # Clear state FIRST to prevent staying in input mode
-        await state.clear()
+        add_week_data(user_id, week_start, channel, funnel_type, week_data)
         
         await message.answer(f"✅ Данные успешно сохранены для канала {channel} за неделю {week_start}!")
+        await state.clear()
         
-        # Check for reflection triggers ONLY for the 5 statistical fields
-        statistical_fields = ['responses', 'screenings', 'onsites', 'offers', 'rejections']
-        triggers = []
-        
-        for field in statistical_fields:
-            old_value = old_data_dict.get(field, 0)
-            new_value = new_data_dict.get(field, 0)
-            delta = new_value - old_value
-            if delta > 0:
-                triggers.append((field, delta))
-        
-        # Offer reflection form if any statistical field increased
-        if triggers:
-            await ReflectionTrigger.offer_reflection_form(message, user_id, week_start, channel, funnel_type, triggers)
-        else:
-            # If no triggers, show main menu
-            await show_main_menu(user_id, message)
+        # Показываем главное меню
+        await show_main_menu_new_message(user_id, message)
         
     except ValueError:
-        # Only respond with error if still in the rejections state
-        await message.answer("❌ Введите число от 0 до 999 для отклонений")
+        await message.answer("❌ Введите число")
 
 @dp.message(FunnelStates.edit_entering_value)
 async def process_edit_value(message: types.Message, state: FSMContext):
@@ -957,14 +887,14 @@ async def process_edit_value(message: types.Message, state: FSMContext):
             await message.answer("❌ Не удалось обновить данные")
             
         await state.clear()
-        await show_main_menu(user_id, message)
+        await show_main_menu_new_message(user_id, message)
         
     except ValueError:
-        await message.answer("❌ Введите число для редактирования")
+        await message.answer("❌ Введите число")
 
 async def show_main_menu_new_message(user_id: int, message):
-    """Deprecated - use show_main_menu instead"""
-    await show_main_menu(user_id, message)
+    """Показать главное меню новым сообщением"""
+    user_data = get_user_funnels(user_id)
     current_funnel = "Активная" if user_data.get('active_funnel') == 'active' else "Пассивная"
     
     menu_text = f"""
@@ -992,11 +922,11 @@ async def show_main_menu_new_message(user_id: int, message):
 
 @dp.message(StateFilter(None))
 async def handle_edit_command(message: types.Message):
-    """Обработка команд редактирования данных без состояния"""
+    """Обработка команд редактирования данных"""
     text = message.text.strip()
     user_id = message.from_user.id
     
-    # Проверяем, является ли это командой редактирования (формат: YYYY-MM-DD channel field value)
+    # Проверяем, является ли это командой редактирования
     parts = text.split()
     if len(parts) == 4:
         try:
@@ -1025,8 +955,8 @@ async def handle_edit_command(message: types.Message):
         except Exception as e:
             await message.answer(f"❌ Ошибка: {str(e)}")
     else:
-        # Для всех других сообщений без состояния - показать главное меню
-        await show_main_menu(user_id, message)
+        # Показываем справку
+        await message.answer("Используйте команды: /start, /menu, /help, /faq")
 
 # Profile FSM state handlers
 @dp.message(ProfileStates.role, F.text)
@@ -1330,9 +1260,6 @@ async def main():
     """Основная функция запуска бота"""
     # Инициализируем базу данных
     init_db()
-    
-    # Регистрируем обработчики рефлексии
-    register_reflection_handlers(dp)
     
     # Настраиваем напоминания
     setup_reminders(bot)

@@ -205,22 +205,10 @@ def remove_channel(user_id: int, channel_name: str):
     conn.commit()
     conn.close()
 
-def add_week_data(user_id: int, week_start: str, channel: str, funnel_type: str, data: dict, check_triggers: bool = True):
+def add_week_data(user_id: int, week_start: str, channel: str, funnel_type: str, data: dict):
     """Добавить данные за неделю (суммируя с существующими, если есть)"""
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    # Get old data for trigger checking
-    old_data = {}
-    if check_triggers:
-        cursor.execute("""
-            SELECT * FROM week_data
-            WHERE user_id = ? AND week_start = ? AND channel_name = ? AND funnel_type = ?
-        """, (user_id, week_start, channel, funnel_type))
-        
-        existing_row = cursor.fetchone()
-        if existing_row:
-            old_data = dict(existing_row)
     
     # Проверяем, есть ли уже данные для этой недели/канала/типа воронки
     cursor.execute("""
@@ -307,32 +295,6 @@ def add_week_data(user_id: int, week_start: str, channel: str, funnel_type: str,
     
     conn.commit()
     conn.close()
-    
-    # Return old_data and new_data for trigger checking if requested
-    if check_triggers:
-        # Calculate new_data after the update
-        new_data = old_data.copy() if old_data else {}
-        if funnel_type == 'active':
-            new_data.update({
-                'applications': new_data.get('applications', 0) + data.get('applications', 0),
-                'responses': new_data.get('responses', 0) + data.get('responses', 0),
-                'screenings': new_data.get('screenings', 0) + data.get('screenings', 0),
-                'onsites': new_data.get('onsites', 0) + data.get('onsites', 0),
-                'offers': new_data.get('offers', 0) + data.get('offers', 0),
-                'rejections': new_data.get('rejections', 0) + data.get('rejections', 0)
-            })
-        else:  # passive
-            new_data.update({
-                'views': new_data.get('views', 0) + data.get('views', 0),
-                'incoming': new_data.get('incoming', 0) + data.get('incoming', 0),
-                'screenings': new_data.get('screenings', 0) + data.get('screenings', 0),
-                'onsites': new_data.get('onsites', 0) + data.get('onsites', 0),
-                'offers': new_data.get('offers', 0) + data.get('offers', 0),
-                'rejections': new_data.get('rejections', 0) + data.get('rejections', 0)
-            })
-        return old_data, new_data
-    
-    return None, None
 
 def cleanup_duplicate_data():
     """Очистка дублированных данных - суммирование существующих дубликатов"""

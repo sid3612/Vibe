@@ -1,117 +1,83 @@
 #!/usr/bin/env python3
 """
-Final verification that PRD v3 reflection system is working correctly
+Fix regression issues found in testing
 """
 
-from db import init_db, add_week_data, get_week_data
-from reflection_forms import ReflectionTrigger, ReflectionQueue
-from datetime import datetime, timedelta
+import json
+from db import save_profile, get_profile, delete_profile
 
-def final_integration_test():
-    """Test complete integration of reflection system"""
-    print("🚀 Final Integration Test - PRD v3 Reflection System")
-    print("=" * 60)
+def fix_constraints_field_issue():
+    """Fix the constraints field mapping issue"""
+    print("🔧 Investigating constraints field issue...")
     
-    init_db()
+    test_user_id = 888888
     
-    # Test user and data
-    test_user_id = 777777
-    today = datetime.now()
-    monday = today - timedelta(days=today.weekday())
-    week_start = monday.strftime('%Y-%m-%d')
-    
-    # Simulate adding initial data
-    print("📊 Step 1: Adding initial week data")
-    initial_data = {
-        'applications': 10,
-        'responses': 2, 
-        'screenings': 1,
-        'onsites': 0,
-        'offers': 0,
-        'rejections': 8
+    # Test profile with constraints
+    test_profile = {
+        'role': 'Test Role',
+        'current_location': 'Test Location',
+        'target_location': 'Test Target',
+        'level': 'Senior',
+        'deadline_weeks': 16,
+        'target_end_date': '2025-12-01',
+        'constraints': 'Test constraints text'
     }
     
-    add_week_data(test_user_id, week_start, "LinkedIn", "active", initial_data, check_triggers=False)
-    print("   ✅ Initial data added")
+    print(f"Original constraints: {test_profile.get('constraints')}")
     
-    # Get old data
-    old_data_record = get_week_data(test_user_id, week_start, "LinkedIn", "active")
-    old_data = dict(old_data_record) if old_data_record else {}
-    print(f"   📄 Old data: {old_data}")
+    # Save profile
+    save_profile(test_user_id, test_profile)
     
-    # Add new data with increases
-    print("📊 Step 2: Adding new data with increases")
-    new_data = {
-        'applications': 5,  # Total will be 15
-        'responses': 3,     # Total will be 5 (+3 increase -> trigger)
-        'screenings': 2,    # Total will be 3 (+2 increase -> trigger) 
-        'onsites': 1,       # Total will be 1 (+1 increase -> trigger)
-        'offers': 1,        # Total will be 1 (+1 increase -> trigger)
-        'rejections': 2     # Total will be 10 (+2 increase -> trigger)
-    }
+    # Retrieve and check
+    retrieved = get_profile(test_user_id)
+    print(f"Retrieved constraints_text: {retrieved.get('constraints_text')}")
+    print(f"Retrieved constraints: {retrieved.get('constraints')}")
     
-    add_week_data(test_user_id, week_start, "LinkedIn", "active", new_data, check_triggers=False)
+    # Check what's actually in the database
+    import sqlite3
+    conn = sqlite3.connect('funnel_coach.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT constraints_text FROM profiles WHERE user_id = ?", (test_user_id,))
+    db_result = cursor.fetchone()
+    print(f"Database constraints_text: {db_result[0] if db_result else 'None'}")
+    conn.close()
     
-    # Get updated data
-    updated_data_record = get_week_data(test_user_id, week_start, "LinkedIn", "active")
-    updated_data = dict(updated_data_record) if updated_data_record else {}
-    print(f"   📄 Updated data: {updated_data}")
+    # The issue is that we need to ensure proper mapping
+    # The save_profile function should convert 'constraints' to 'constraints_text'
+    # And get_profile should convert 'constraints_text' back to 'constraints' for display
     
-    # Test trigger detection
-    print("🔍 Step 3: Testing trigger detection")
-    triggers = ReflectionTrigger.check_triggers(
-        test_user_id, week_start, "LinkedIn", "active", old_data, updated_data
-    )
+    delete_profile(test_user_id)
+
+def check_date_calculation():
+    """Check date calculation accuracy"""
+    from validators import calculate_target_end_date
+    from datetime import datetime, timedelta
     
-    print(f"   🎯 Triggers detected: {triggers}")
-    expected_triggers = ['responses', 'screenings', 'onsites', 'offers', 'rejections']
-    actual_trigger_stages = [stage for stage, delta in triggers]
+    print("🔧 Investigating date calculation issue...")
     
-    triggers_correct = all(stage in actual_trigger_stages for stage in expected_triggers)
-    print(f"   ✅ Trigger detection: {'PASS' if triggers_correct else 'FAIL'}")
+    weeks = 12
+    calculated = calculate_target_end_date(weeks)
+    print(f"Calculated end date for {weeks} weeks: {calculated}")
     
-    # Test queue creation
-    print("📋 Step 4: Testing queue creation")
-    total_forms_expected = sum(delta for _, delta in triggers)
+    # Expected date
+    expected = datetime.now() + timedelta(weeks=weeks)
+    print(f"Expected date: {expected.strftime('%Y-%m-%d')}")
     
-    for stage, delta in triggers:
-        entry_ids = ReflectionQueue.create_queue_entries(
-            test_user_id, week_start, "LinkedIn", "active", stage, delta
-        )
-        print(f"   ➕ Created {len(entry_ids)} forms for {stage} stage")
+    # Check difference
+    calc_date = datetime.strptime(calculated, '%Y-%m-%d')
+    diff_days = abs((calc_date - expected).days)
+    print(f"Difference: {diff_days} days")
     
-    pending_forms = ReflectionQueue.get_pending_forms(test_user_id)
-    print(f"   📊 Total pending forms: {len(pending_forms)}")
-    
-    queue_correct = len(pending_forms) == total_forms_expected
-    print(f"   ✅ Queue creation: {'PASS' if queue_correct else 'FAIL'}")
-    
-    # Test commands
-    print("🛠 Step 5: Testing command functionality")
-    next_form = ReflectionQueue.get_next_form(test_user_id)
-    commands_working = next_form is not None
-    print(f"   ✅ Commands ready: {'PASS' if commands_working else 'FAIL'}")
-    
-    # Summary
-    print("\n" + "=" * 60)
-    print("INTEGRATION TEST SUMMARY")
-    print("=" * 60)
-    
-    all_tests_passed = triggers_correct and queue_correct and commands_working
-    
-    if all_tests_passed:
-        print("🎉 ALL TESTS PASSED!")
-        print("✅ Reflection system fully integrated and working")
-        print("✅ Triggers detect counter increases correctly")
-        print("✅ Queue management functional") 
-        print("✅ Ready for user testing")
-        print("\n🚀 SYSTEM STATUS: PRODUCTION READY")
-        print("📝 User can now test by adding statistical data")
+    if diff_days > 1:
+        print("❌ Date calculation is off by more than 1 day")
+        print("This could be due to timezone or calculation method")
     else:
-        print("⚠️  Some tests failed - check implementation")
-    
-    print("=" * 60)
-    return all_tests_passed
+        print("✅ Date calculation is within acceptable range")
 
 if __name__ == "__main__":
-    final_integration_test()
+    print("🧪 Investigating Regression Issues")
+    print("=" * 50)
+    
+    fix_constraints_field_issue()
+    print()
+    check_date_calculation()
