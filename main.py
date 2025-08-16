@@ -20,6 +20,7 @@ from profile import (ProfileStates, format_profile_display)
 import json
 from validators import parse_salary_string, parse_list_input, validate_superpowers
 from keyboards import get_level_keyboard, get_company_types_keyboard, get_skip_back_keyboard, get_back_keyboard, get_profile_actions_keyboard, get_profile_edit_fields_keyboard, get_confirm_delete_keyboard, get_final_review_keyboard, get_funnel_type_keyboard
+from cvr_autoanalyzer import analyze_and_recommend
 # Removed old reflection system imports - now using PRD v3.1
 # from reflection_forms import ReflectionTrigger, ReflectionQueue
 # from integration_v3 import register_reflection_handlers
@@ -165,6 +166,57 @@ async def cmd_profile_delete(message: types.Message):
         "⚠️ Вы уверены, что хотите удалить свой профиль? Это действие нельзя отменить.",
         reply_markup=get_confirm_delete_keyboard()
     )
+
+async def send_cvr_recommendations(message, user_id: int, cvr_analysis: dict):
+    """
+    Отправляет пользователю рекомендации на основе анализа CVR
+    Iteration 4: Автодетект проблем и ChatGPT рекомендации
+    """
+    problems = cvr_analysis.get("problems", [])
+    chatgpt_prompt = cvr_analysis.get("chatgpt_prompt", "")
+    
+    # Формируем сообщение о найденных проблемах
+    problems_text = "🔍 **Автоанализ CVR обнаружил проблемы:**\n\n"
+    
+    for i, problem in enumerate(problems, 1):
+        cvr_name = problem['cvr_name']
+        cvr_value = problem['cvr_value']
+        denominator = problem['denominator']
+        
+        problems_text += f"{i}. **{cvr_name}**: {cvr_value:.1f}% (обработано: {denominator})\n"
+        
+        # Добавляем соответствующие гипотезы
+        hypotheses = problem.get('hypotheses', [])
+        if hypotheses:
+            problems_text += f"   💡 Релевантные направления: "
+            h_titles = [h.get('title', h.get('id', 'Unknown')) for h in hypotheses]
+            problems_text += ", ".join(h_titles) + "\n"
+        problems_text += "\n"
+    
+    # Отправляем анализ проблем
+    await message.answer(problems_text, parse_mode="Markdown")
+    
+    # Показываем промпт для ChatGPT
+    if chatgpt_prompt:
+        await message.answer(
+            "🤖 **Готов промпт для получения персональных рекомендаций:**\n\n"
+            "Скопируйте этот текст и отправьте в ChatGPT для получения 10 персональных рекомендаций:",
+            parse_mode="Markdown"
+        )
+        
+        # Отправляем промпт частями, если он слишком длинный
+        max_length = 4000  # Telegram ограничение
+        if len(chatgpt_prompt) > max_length:
+            parts = [chatgpt_prompt[i:i+max_length] for i in range(0, len(chatgpt_prompt), max_length)]
+            for i, part in enumerate(parts, 1):
+                await message.answer(f"```\n{part}\n```", parse_mode="Markdown")
+                if i < len(parts):
+                    await asyncio.sleep(0.5)  # Небольшая пауза между частями
+        else:
+            await message.answer(f"```\n{chatgpt_prompt}\n```", parse_mode="Markdown")
+    
+    # Возвращаемся в главное меню
+    await show_main_menu(user_id, message)
 
 async def show_main_menu(user_id: int, message_or_query):
     """Показать главное меню"""
@@ -1083,6 +1135,16 @@ async def process_rejections(message: types.Message, state: FSMContext):
         
         sections = ReflectionV31System.check_reflection_trigger(user_id, week_start, channel, funnel_type, old_data_dict, new_data_dict)
         
+        # Check for CVR problems and generate recommendations (Iteration 4)
+        try:
+            cvr_analysis = analyze_and_recommend(user_id)
+            if cvr_analysis and cvr_analysis.get("status") == "problems_found":
+                # Store CVR recommendations for sending after reflection form
+                await state.update_data(cvr_analysis=cvr_analysis)
+                print(f"💡 CVR Analysis: {cvr_analysis['message']}")
+        except Exception as e:
+            print(f"⚠️ CVR Analysis failed: {e}")
+        
         if sections:
             # Store state data for reflection form
             await state.update_data(
@@ -1097,8 +1159,16 @@ async def process_rejections(message: types.Message, state: FSMContext):
             # Offer reflection form using PRD v3.1 system
             await ReflectionV31System.offer_reflection_form(message, user_id, week_start, channel, funnel_type, sections)
         else:
-            # If no triggers, show main menu
-            await show_main_menu(user_id, message)
+            # Check if we have CVR recommendations to send
+            current_data = await state.get_data()
+            cvr_analysis = current_data.get('cvr_analysis')
+            
+            if cvr_analysis and cvr_analysis.get("status") == "problems_found":
+                await send_cvr_recommendations(message, user_id, cvr_analysis)
+                await state.clear()
+            else:
+                # If no triggers and no recommendations, show main menu
+                await show_main_menu(user_id, message)
         
     except ValueError:
         # Only respond with error if still in the rejections state
