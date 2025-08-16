@@ -18,7 +18,16 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
 - **Profile FSM Workflow**: Implemented step-by-step profile creation wizard with validation
 - **Profile Integration**: Added profile menu to main interface with view/edit/delete capabilities
 - **FSM State Filtering**: Fixed aiogram v3 compatibility with StateFilter(None) for proper message routing
-- **Profile Workflow Complete**: End-to-end profile creation now working: role → location → level → timeline
+- **Profile Workflow Complete**: End-to-end profile creation working: role → location → level → timeline
+- **Optional Fields System**: Complete implementation of all PRD v2 optional fields with skip functionality:
+  * Role synonyms (≤4) 
+  * Salary expectations (min-max + currency + period)
+  * Company types (multi-select)
+  * Industries (≤3)
+  * Key competencies (≤10) 
+  * Superpowers map (3-5)
+  * Additional constraints
+- **Profile Management**: Fixed edit/delete functionality with proper keyboards and state handling
 
 ## User Preferences
 

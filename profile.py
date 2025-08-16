@@ -18,9 +18,12 @@ class ProfileStates(StatesGroup):
     level_custom = State()
     deadline_weeks = State()
     
-    # Optional fields
+    # Optional fields with skip capability
     role_synonyms = State()
-    salary = State()
+    salary_min = State()
+    salary_max = State()
+    salary_currency = State()
+    salary_period = State()
     company_types = State()
     company_custom = State()
     industries = State()
@@ -63,6 +66,45 @@ def format_profile_display(profile_data: dict) -> str:
         result.append("-" * 40)
         salary_text = f"{profile_data['salary_min']:.0f}-{profile_data['salary_max']:.0f} {profile_data['salary_currency']}/{profile_data['salary_period']}"
         result.append(salary_text)
+        result.append("")
+    
+    if profile_data.get('company_types_json'):
+        types = json.loads(profile_data['company_types_json'])
+        if types:
+            result.append("🏢 ТИПЫ КОМПАНИЙ")
+            result.append("-" * 40)
+            result.append(", ".join(types))
+            result.append("")
+    
+    if profile_data.get('industries_json'):
+        industries = json.loads(profile_data['industries_json'])
+        if industries:
+            result.append("🏭 ИНДУСТРИИ")
+            result.append("-" * 40)
+            result.append(", ".join(industries))
+            result.append("")
+    
+    if profile_data.get('competencies_json'):
+        competencies = json.loads(profile_data['competencies_json'])
+        if competencies:
+            result.append("🛠 КЛЮЧЕВЫЕ КОМПЕТЕНЦИИ")
+            result.append("-" * 40)
+            result.append(", ".join(competencies))
+            result.append("")
+    
+    if profile_data.get('superpowers_json'):
+        superpowers = json.loads(profile_data['superpowers_json'])
+        if superpowers:
+            result.append("⚡ КАРТА СУПЕРСИЛ")
+            result.append("-" * 40)
+            result.append(", ".join(superpowers))
+            result.append("")
+    
+    if profile_data.get('constraints'):
+        result.append("⚠️ ОГРАНИЧЕНИЯ")
+        result.append("-" * 40)
+        result.append(profile_data['constraints'])
+        result.append("")
         result.append("")
     
     if profile_data.get('company_types_json'):
