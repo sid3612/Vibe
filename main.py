@@ -20,6 +20,8 @@ from profile import (ProfileStates, format_profile_display)
 import json
 from validators import parse_salary_string, parse_list_input, validate_superpowers
 from keyboards import get_level_keyboard, get_company_types_keyboard, get_skip_back_keyboard, get_back_keyboard, get_profile_actions_keyboard, get_profile_edit_fields_keyboard, get_confirm_delete_keyboard, get_final_review_keyboard
+from reflection_forms import ReflectionTrigger, ReflectionQueue
+from integration_v3 import register_reflection_handlers
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -694,8 +696,24 @@ async def process_week_data(message: types.Message, state: FSMContext):
                         'offers': values[4],
                         'rejections': values[5]
                     }
-                    add_week_data(user_id, week_start, channel, funnel_type, data)
+                    # Get old data before adding new
+                    old_data_dict = {}
+                    existing_data = get_week_data(user_id, week_start, channel, funnel_type)
+                    if existing_data:
+                        old_data_dict = dict(existing_data)
+                    
+                    add_week_data(user_id, week_start, channel, funnel_type, data, check_triggers=False)
                     success_count += 1
+                    
+                    # Calculate new data after addition for trigger checking
+                    new_data_dict = old_data_dict.copy()
+                    for key, value in data.items():
+                        new_data_dict[key] = new_data_dict.get(key, 0) + value
+                    
+                    # Check for reflection triggers
+                    triggers = ReflectionTrigger.check_triggers(user_id, week_start, channel, funnel_type, old_data_dict, new_data_dict)
+                    if triggers:
+                        await ReflectionTrigger.offer_reflection_form(message, user_id, week_start, channel, funnel_type, triggers)
             else:  # passive
                 if len(values) == 6:
                     data = {
@@ -706,8 +724,24 @@ async def process_week_data(message: types.Message, state: FSMContext):
                         'offers': values[4],
                         'rejections': values[5]
                     }
-                    add_week_data(user_id, week_start, channel, funnel_type, data)
+                    # Get old data before adding new
+                    old_data_dict = {}
+                    existing_data = get_week_data(user_id, week_start, channel, funnel_type)
+                    if existing_data:
+                        old_data_dict = dict(existing_data)
+                    
+                    add_week_data(user_id, week_start, channel, funnel_type, data, check_triggers=False)
                     success_count += 1
+                    
+                    # Calculate new data after addition for trigger checking
+                    new_data_dict = old_data_dict.copy()
+                    for key, value in data.items():
+                        new_data_dict[key] = new_data_dict.get(key, 0) + value
+                    
+                    # Check for reflection triggers (excluding views for passive)
+                    triggers = ReflectionTrigger.check_triggers(user_id, week_start, channel, funnel_type, old_data_dict, new_data_dict)
+                    if triggers:
+                        await ReflectionTrigger.offer_reflection_form(message, user_id, week_start, channel, funnel_type, triggers)
         
         if success_count > 0:
             await message.answer(f"✅ Добавлено {success_count} записей за неделю {week_start}")
@@ -856,12 +890,31 @@ async def process_rejections(message: types.Message, state: FSMContext):
                 'rejections': value
             }
         
-        # Сохраняем данные
+        # Сохраняем данные с проверкой триггеров
         channel = data.get('selected_channel')
-        add_week_data(user_id, week_start, channel, funnel_type, week_data)
+        
+        # Get old data before adding new
+        old_data_dict = {}
+        existing_data = get_week_data(user_id, week_start, channel, funnel_type)
+        if existing_data:
+            old_data_dict = dict(existing_data)
+        
+        add_week_data(user_id, week_start, channel, funnel_type, week_data, check_triggers=False)
+        
+        # Calculate new data after addition for trigger checking
+        new_data_dict = old_data_dict.copy()
+        for key, value in week_data.items():
+            new_data_dict[key] = new_data_dict.get(key, 0) + value
+        
+        # Check for reflection triggers
+        triggers = ReflectionTrigger.check_triggers(user_id, week_start, channel, funnel_type, old_data_dict, new_data_dict)
         
         await message.answer(f"✅ Данные успешно сохранены для канала {channel} за неделю {week_start}!")
         await state.clear()
+        
+        # Offer reflection form if triggers detected
+        if triggers:
+            await ReflectionTrigger.offer_reflection_form(message, user_id, week_start, channel, funnel_type, triggers)
         
         # Показываем главное меню
         await show_main_menu_new_message(user_id, message)
@@ -1260,6 +1313,9 @@ async def main():
     """Основная функция запуска бота"""
     # Инициализируем базу данных
     init_db()
+    
+    # Регистрируем обработчики рефлексии
+    register_reflection_handlers(dp)
     
     # Настраиваем напоминания
     setup_reminders(bot)

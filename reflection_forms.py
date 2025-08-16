@@ -4,8 +4,8 @@ Automatic reflection form suggestions after counter increases
 """
 
 from aiogram import types
-from aiogram.dispatcher import FSMContext
-from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 import json
 import sqlite3
 from datetime import datetime

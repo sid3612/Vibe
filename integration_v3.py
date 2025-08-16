@@ -4,7 +4,7 @@ Connects reflection system to existing week data input handlers
 """
 
 from aiogram import types
-from aiogram.dispatcher import FSMContext
+from aiogram.fsm.context import FSMContext
 from reflection_forms import ReflectionTrigger
 
 async def handle_week_data_with_reflection_check(message: types.Message, user_id: int, 
@@ -33,65 +33,85 @@ async def handle_week_data_with_reflection_check(message: types.Message, user_id
         )
 
 def register_reflection_handlers(dp):
-    """Register all reflection form handlers with dispatcher"""
+    """Register all reflection form handlers with dispatcher - aiogram v3 style"""
     from reflection_forms import (
         handle_reflection_yes, handle_reflection_no,
-        cmd_log_event, cmd_pending_forms, cmd_last_events
+        cmd_log_event, cmd_pending_forms, cmd_last_events, ReflectionStates
     )
     from reflection_handlers import (
         process_stage_type, process_rating, process_strengths, process_weaknesses,
         process_mood_rating, process_rejection_reason, process_rejection_other,
         handle_continue_forms, handle_stop_forms, handle_skip_form, handle_cancel_form
     )
+    from aiogram.filters import Command, StateFilter
+    from aiogram import F
     
-    # Callback handlers for reflection triggers
-    dp.register_callback_query_handler(handle_reflection_yes, lambda c: c.data.startswith("reflection_yes_"))
-    dp.register_callback_query_handler(handle_reflection_no, lambda c: c.data == "reflection_no")
+    # Callback handlers for reflection triggers - aiogram v3 style
+    @dp.callback_query(F.data.startswith("reflection_yes_"))
+    async def _handle_reflection_yes(callback: types.CallbackQuery, state: FSMContext):
+        await handle_reflection_yes(callback, state)
+        
+    @dp.callback_query(F.data == "reflection_no")
+    async def _handle_reflection_no(callback: types.CallbackQuery):
+        await handle_reflection_no(callback)
     
-    # Stage type selection
-    dp.register_callback_query_handler(
-        process_stage_type, 
-        lambda c: c.data.startswith("stage_"), 
-        state="*"
-    )
+    @dp.callback_query(F.data.startswith("stage_"))
+    async def _process_stage_type(callback: types.CallbackQuery, state: FSMContext):
+        await process_stage_type(callback, state)
     
-    # Rating selection
-    dp.register_callback_query_handler(
-        process_rating,
-        lambda c: c.data.startswith("rating_"),
-        state="*"
-    )
+    @dp.callback_query(F.data.startswith("rating_"))
+    async def _process_rating(callback: types.CallbackQuery, state: FSMContext):
+        await process_rating(callback, state)
     
-    # Mood rating
-    dp.register_callback_query_handler(
-        process_mood_rating,
-        lambda c: c.data.startswith("rating_") and c.message.text and "самочувствие" in c.message.text.lower(),
-        state="*"
-    )
+    @dp.callback_query(F.data.startswith("reason_"))
+    async def _process_rejection_reason(callback: types.CallbackQuery, state: FSMContext):
+        await process_rejection_reason(callback, state)
+        
+    @dp.callback_query(F.data == "reasons_done")
+    async def _process_reasons_done(callback: types.CallbackQuery, state: FSMContext):
+        await process_rejection_reason(callback, state)
+        
+    @dp.callback_query(F.data == "continue_forms")
+    async def _handle_continue_forms(callback: types.CallbackQuery, state: FSMContext):
+        await handle_continue_forms(callback, state)
+        
+    @dp.callback_query(F.data == "stop_forms")
+    async def _handle_stop_forms(callback: types.CallbackQuery):
+        await handle_stop_forms(callback)
+        
+    @dp.callback_query(F.data == "skip_form")
+    async def _handle_skip_form(callback: types.CallbackQuery, state: FSMContext):
+        await handle_skip_form(callback, state)
+        
+    @dp.callback_query(F.data == "cancel_form")
+    async def _handle_cancel_form(callback: types.CallbackQuery, state: FSMContext):
+        await handle_cancel_form(callback, state)
     
-    # Rejection reasons
-    dp.register_callback_query_handler(
-        process_rejection_reason,
-        lambda c: c.data.startswith("reason_") or c.data == "reasons_done",
-        state="*"
-    )
+    # Text message handlers for reflection states - aiogram v3 style
+    @dp.message(ReflectionStates.strengths, F.text)
+    async def _process_strengths(message: types.Message, state: FSMContext):
+        await process_strengths(message, state)
+        
+    @dp.message(ReflectionStates.weaknesses, F.text)
+    async def _process_weaknesses(message: types.Message, state: FSMContext):
+        await process_weaknesses(message, state)
+        
+    @dp.message(ReflectionStates.rejection_other, F.text)
+    async def _process_rejection_other(message: types.Message, state: FSMContext):
+        await process_rejection_other(message, state)
     
-    # Form navigation
-    dp.register_callback_query_handler(handle_continue_forms, lambda c: c.data == "continue_forms")
-    dp.register_callback_query_handler(handle_stop_forms, lambda c: c.data == "stop_forms")
-    dp.register_callback_query_handler(handle_skip_form, lambda c: c.data == "skip_form")
-    dp.register_callback_query_handler(handle_cancel_form, lambda c: c.data == "cancel_form")
-    
-    # Text message handlers for reflection states
-    from reflection_forms import ReflectionStates
-    dp.register_message_handler(process_strengths, state=ReflectionStates.strengths)
-    dp.register_message_handler(process_weaknesses, state=ReflectionStates.weaknesses)
-    dp.register_message_handler(process_rejection_other, state=ReflectionStates.rejection_other)
-    
-    # Commands
-    dp.register_message_handler(cmd_log_event, commands=['log_event'])
-    dp.register_message_handler(cmd_pending_forms, commands=['pending_forms'])
-    dp.register_message_handler(cmd_last_events, commands=['last_events'])
+    # Commands - aiogram v3 style
+    @dp.message(Command("log_event"))
+    async def _cmd_log_event(message: types.Message, state: FSMContext):
+        await cmd_log_event(message, state)
+        
+    @dp.message(Command("pending_forms"))
+    async def _cmd_pending_forms(message: types.Message, state: FSMContext):
+        await cmd_pending_forms(message, state)
+        
+    @dp.message(Command("last_events"))
+    async def _cmd_last_events(message: types.Message):
+        await cmd_last_events(message)
 
 # Helper function to modify existing handlers
 def modify_existing_week_data_handler(original_handler):

@@ -3,7 +3,7 @@ Reflection form handlers - Complete FSM workflow for reflection forms
 """
 
 from aiogram import types
-from aiogram.dispatcher import FSMContext
+from aiogram.fsm.context import FSMContext
 import json
 from reflection_forms import (
     ReflectionStates, ReflectionQueue, 
