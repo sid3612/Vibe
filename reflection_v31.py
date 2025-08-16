@@ -254,7 +254,7 @@ async def start_combined_reflection_form(message: types.Message, state: FSMConte
         form_data[f"section_{section['stage']}"] = {
             'stage': section['stage'],
             'delta': section['delta'],
-            'stage_display': section['stage_display']
+            'stage_display': section.get('stage_display', ReflectionV31System.get_stage_display(section['stage']))
         }
     
     await state.update_data(
@@ -279,7 +279,7 @@ async def process_next_section(message: types.Message, state: FSMContext):
         return
     
     current_section = sections[section_index]
-    stage_display = current_section['stage_display']
+    stage_display = current_section.get('stage_display', ReflectionV31System.get_stage_display(current_section['stage']))
     delta = current_section['delta']
     
     # Show section header and ask for rating
