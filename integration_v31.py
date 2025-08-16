@@ -36,7 +36,7 @@ def register_v31_reflection_handlers(dp):
     """Register all PRD v3.1 reflection form handlers with dispatcher - aiogram v3 style"""
     from reflection_v31 import (
         handle_reflection_v31_yes, handle_reflection_v31_no, handle_reflection_v31_cancel,
-        handle_section_rating, handle_section_strengths, handle_section_weaknesses, 
+        handle_section_rating, handle_section_reject_type, handle_section_strengths, handle_section_weaknesses, 
         handle_section_mood, handle_rejection_reasons, handle_rejection_other,
         handle_skip_strengths, handle_skip_weaknesses, ReflectionV31States
     )
@@ -60,6 +60,11 @@ def register_v31_reflection_handlers(dp):
     @dp.callback_query(F.data.startswith("rating_"), StateFilter(ReflectionV31States.section_rating))
     async def _handle_section_rating(callback: types.CallbackQuery, state: FSMContext):
         await handle_section_rating(callback, state)
+    
+    # Rejection type handlers
+    @dp.callback_query(F.data.startswith("reject_type_"), StateFilter(ReflectionV31States.section_reject_type))
+    async def _handle_section_reject_type(callback: types.CallbackQuery, state: FSMContext):
+        await handle_section_reject_type(callback, state)
         
     @dp.callback_query(F.data.startswith("rating_"), StateFilter(ReflectionV31States.section_mood))
     async def _handle_section_mood(callback: types.CallbackQuery, state: FSMContext):

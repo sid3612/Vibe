@@ -17,6 +17,7 @@ class ReflectionV31States(StatesGroup):
     """FSM states for PRD v3.1 reflection form"""
     # Single form with multiple sections
     section_rating = State()
+    section_reject_type = State()  # New state for rejection type
     section_strengths = State() 
     section_weaknesses = State()
     section_mood = State()
@@ -316,14 +317,72 @@ async def handle_section_rating(callback_query: types.CallbackQuery, state: FSMC
     
     await state.update_data(current_form_data=form_data)
     
-    # Ask for strengths with skip button
+    # Check if this is a rejection section - ask for rejection type first
+    if current_section['stage'] == 'reject_no_interview':
+        reject_type_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Реджект без интервью", callback_data="reject_type_no_interview")],
+            [InlineKeyboardButton(text="Реджект после интервью с рекрутером", callback_data="reject_type_recruiter")],
+            [InlineKeyboardButton(text="Реджект после тех интервью", callback_data="reject_type_technical")]
+        ])
+        
+        if hasattr(callback_query.message, 'edit_text'):
+            await callback_query.message.edit_text(
+                f"Оценка: {rating}/5\n\n"
+                f"Тип отказа?",
+                reply_markup=reject_type_keyboard
+            )
+        await state.set_state(ReflectionV31States.section_reject_type)
+    else:
+        # For non-rejection sections, proceed to strengths
+        skip_keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="Пропустить", callback_data="skip_strengths")]
+        ])
+        
+        if hasattr(callback_query.message, 'edit_text'):
+            await callback_query.message.edit_text(
+                f"Оценка: {rating}/5\n\n"
+                f"Отмеченные сильные стороны:",
+                reply_markup=skip_keyboard
+            )
+        await state.set_state(ReflectionV31States.section_strengths)
+    
+    await callback_query.answer()
+
+async def handle_section_reject_type(callback_query: types.CallbackQuery, state: FSMContext):
+    """Handle rejection type selection"""
+    if not callback_query.data or not callback_query.message:
+        await callback_query.answer("Ошибка обработки")
+        return
+        
+    # Extract rejection type from callback data
+    reject_type_map = {
+        "reject_type_no_interview": "Реджект без интервью",
+        "reject_type_recruiter": "Реджект после интервью с рекрутером", 
+        "reject_type_technical": "Реджект после тех интервью"
+    }
+    
+    reject_type = reject_type_map.get(callback_query.data, "Неизвестный тип")
+    
+    # Save rejection type to current section
+    data = await state.get_data()
+    sections = data.get('current_sections', [])
+    section_index = data.get('current_section_index', 0)
+    form_data = data.get('current_form_data', {})
+    
+    current_section = sections[section_index]
+    section_key = f"section_{current_section['stage']}"
+    form_data[section_key]['reject_type'] = reject_type
+    
+    await state.update_data(current_form_data=form_data)
+    
+    # Now proceed to strengths question
     skip_keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Пропустить", callback_data="skip_strengths")]
     ])
     
     if hasattr(callback_query.message, 'edit_text'):
         await callback_query.message.edit_text(
-            f"Оценка: {rating}/5\n\n"
+            f"Тип отказа: {reject_type}\n\n"
             f"Отмеченные сильные стороны:",
             reply_markup=skip_keyboard
         )
