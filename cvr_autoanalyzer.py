@@ -26,12 +26,13 @@ class CVRAutoAnalyzer:
     def __init__(self):
         self.hypotheses_manager = HypothesesManager()
         
-        # Правила выбора гипотез по CVR
+        # Правила выбора гипотез по CVR (согласно требованиям)
         self.cvr_hypothesis_mapping = {
-            'CVR1': ['H1', 'H2'],  # Позиционирование и Каналы
-            'CVR2': ['H2', 'H3'],  # Каналы и Скрининг
-            'CVR3': ['H3', 'H4'],  # Скрининг и Онсайты
-            'CVR4': ['H5']         # Оффер
+            'CVR1': ['H1'],        # CVR1 < 10% = H1
+            'CVR2': ['H1', 'H2'],  # CVR2 < 10% = H1, H2  
+            'CVR3': ['H3', 'H4'],  # CVR3 < 10% = H3, H4
+            'CVR4': ['H5'],        # CVR4 < 10% = H5
+            'CVR5': ['H4']         # CVR5 < 10% = H4 (если будет добавлен)
         }
     
     def detect_cvr_problems(self, user_id: int) -> Dict[str, any]:
@@ -55,10 +56,14 @@ class CVRAutoAnalyzer:
         if not latest_data:
             return {"problems": [], "message": "Нет актуальных данных воронки"}
         
+        print(f"📊 Данные воронки: {latest_data}")
+        
         funnel_type = latest_data.get('funnel_type', 'active')
         metrics = calculate_cvr_metrics(latest_data, funnel_type)
         if not metrics:
             return {"problems": [], "message": "Ошибка расчета метрик"}
+            
+        print(f"📈 Метрики CVR: {metrics}")
         
         # Ищем проблемные CVR
         problems = []
@@ -67,19 +72,20 @@ class CVRAutoAnalyzer:
         cvr_values = self._extract_cvr_numbers(metrics)
         
         # Определяем знаменатели для проверки (≥5)
+        # CVR = числитель / знаменатель, поэтому знаменатель = предыдущий этап воронки
         if funnel_type == 'active':
             denominators = {
-                'CVR1': latest_data.get('responses', 0),
-                'CVR2': latest_data.get('screenings', 0), 
-                'CVR3': latest_data.get('onsites', 0),
-                'CVR4': latest_data.get('offers', 0)
+                'CVR1': latest_data.get('applications', 0),  # responses / applications
+                'CVR2': latest_data.get('responses', 0),     # screenings / responses
+                'CVR3': latest_data.get('screenings', 0),    # onsites / screenings
+                'CVR4': latest_data.get('onsites', 0)        # offers / onsites
             }
         else:
             denominators = {
-                'CVR1': latest_data.get('incoming', 0),
-                'CVR2': latest_data.get('screenings', 0),
-                'CVR3': latest_data.get('onsites', 0), 
-                'CVR4': latest_data.get('offers', 0)
+                'CVR1': latest_data.get('views', 0),         # incoming / views
+                'CVR2': latest_data.get('incoming', 0),      # screenings / incoming
+                'CVR3': latest_data.get('screenings', 0),    # onsites / screenings
+                'CVR4': latest_data.get('onsites', 0)        # offers / onsites
             }
         
         cvr_checks = [
@@ -90,6 +96,7 @@ class CVRAutoAnalyzer:
         ]
         
         for cvr_name, cvr_value, denominator in cvr_checks:
+            print(f"🔍 Проверка {cvr_name}: value={cvr_value}, denominator={denominator}")
             if self._is_problem_cvr(cvr_value, denominator):
                 # Получаем соответствующие гипотезы
                 hypothesis_ids = self.cvr_hypothesis_mapping.get(cvr_name, [])
@@ -109,6 +116,8 @@ class CVRAutoAnalyzer:
                 })
                 
                 print(f"❌ Проблема: {cvr_name} = {cvr_value:.1f}% (знаменатель: {denominator})")
+            else:
+                print(f"✅ {cvr_name} в норме: {cvr_value}% (знаменатель: {denominator})")
         
         return {
             "problems": problems,
