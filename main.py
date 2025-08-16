@@ -30,6 +30,19 @@ class FunnelStates(StatesGroup):
     waiting_for_week_data = State()
     waiting_for_field_update = State()
     waiting_for_reminder_settings = State()
+    # New step-by-step states
+    choosing_channel = State()
+    entering_applications = State()
+    entering_responses = State()
+    entering_screenings = State()
+    entering_onsites = State()
+    entering_offers = State()
+    entering_rejections = State()
+    # Edit data states
+    edit_choosing_week = State()
+    edit_choosing_channel = State()
+    edit_choosing_field = State()
+    edit_entering_value = State()
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
@@ -153,6 +166,7 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
     elif data == "add_channel":
         await query.message.edit_text("Введите название канала (например, LinkedIn, HH.ru, Referrals):")
         await state.set_state(FunnelStates.waiting_for_channel_name)
+        await state.update_data(callback_query_message_id=query.message.message_id)
         
     elif data.startswith("remove_channel_"):
         channel_name = data.replace("remove_channel_", "")
@@ -166,10 +180,10 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
             await query.answer("Сначала добавьте хотя бы один канал")
             await show_channels_menu(user_id, query.message)
         else:
-            await show_week_data_input(user_id, query.message, state)
+            await show_step_by_step_input(user_id, query.message, state)
             
     elif data == "edit_data":
-        await show_edit_data_menu(user_id, query.message)
+        await show_step_by_step_edit(user_id, query.message, state)
         
     elif data == "show_history":
         await show_user_history(user_id, query.message)
@@ -183,7 +197,114 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
             await query.answer("Нет данных для экспорта")
             
     elif data == "setup_reminders":
-        await show_reminder_settings(user_id, query.message, state)
+        await show_reminder_buttons(user_id, query.message)
+        
+    elif data.startswith("reminder_"):
+        frequency = data.replace("reminder_", "")
+        set_user_reminders(user_id, frequency)
+        
+        if frequency == 'off':
+            text = "⏰ Напоминания отключены"
+        elif frequency == 'daily':
+            text = "⏰ Напоминания настроены: ежедневно в 18:00"
+        else:
+            text = "⏰ Напоминания настроены: еженедельно по понедельникам в 10:00"
+            
+        await query.answer(text)
+        await show_main_menu(user_id, query.message)
+        
+    elif data.startswith("select_channel_"):
+        channel = data.replace("select_channel_", "")
+        user_data = get_user_funnels(user_id)
+        funnel_type = user_data.get('active_funnel', 'active')
+        
+        await state.update_data(selected_channel=channel, funnel_type=funnel_type)
+        
+        if funnel_type == 'active':
+            field_name = "подачи (applications)"
+        else:
+            field_name = "просмотры (views)"
+        
+        text = f"📊 Канал: {channel}\n\nВведите количество {field_name}:"
+        await query.message.edit_text(text)
+        await state.set_state(FunnelStates.entering_applications)
+        
+    elif data.startswith("edit_week_"):
+        week = data.replace("edit_week_", "")
+        await state.update_data(selected_week=week)
+        
+        # Получаем каналы для этой недели
+        history = get_user_history(user_id)
+        week_channels = list(set([row['channel_name'] for row in history if row['week_start'] == week]))
+        
+        text = f"✏️ Неделя: {week}\n\nВыберите канал:"
+        
+        keyboard_buttons = []
+        for channel in week_channels:
+            keyboard_buttons.append([InlineKeyboardButton(text=channel, callback_data=f"edit_channel_{channel}")])
+        
+        keyboard_buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="edit_data")])
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        
+        await query.message.edit_text(text, reply_markup=keyboard)
+        await state.set_state(FunnelStates.edit_choosing_channel)
+        
+    elif data.startswith("edit_channel_"):
+        channel = data.replace("edit_channel_", "")
+        await state.update_data(selected_edit_channel=channel)
+        
+        user_data = get_user_funnels(user_id)
+        funnel_type = user_data.get('active_funnel', 'active')
+        
+        if funnel_type == 'active':
+            fields = [
+                ('applications', 'Подачи'),
+                ('responses', 'Ответы'),
+                ('screenings', 'Скрининги'),
+                ('onsites', 'Онсайты'),
+                ('offers', 'Офферы'),
+                ('rejections', 'Реджекты')
+            ]
+        else:
+            fields = [
+                ('views', 'Просмотры'),
+                ('incoming', 'Входящие'),
+                ('screenings', 'Скрининги'),
+                ('onsites', 'Онсайты'),
+                ('offers', 'Офферы'),
+                ('rejections', 'Реджекты')
+            ]
+        
+        text = f"✏️ Канал: {channel}\n\nВыберите поле для редактирования:"
+        
+        keyboard_buttons = []
+        for field_key, field_name in fields:
+            keyboard_buttons.append([InlineKeyboardButton(text=field_name, callback_data=f"edit_field_{field_key}")])
+        
+        keyboard_buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="edit_data")])
+        keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+        
+        await query.message.edit_text(text, reply_markup=keyboard)
+        await state.set_state(FunnelStates.edit_choosing_field)
+        
+    elif data.startswith("edit_field_"):
+        field = data.replace("edit_field_", "")
+        await state.update_data(selected_field=field)
+        
+        user_data = get_user_funnels(user_id)
+        funnel_type = user_data.get('active_funnel', 'active')
+        
+        field_names = {
+            'applications': 'подачи', 'responses': 'ответы', 'screenings': 'скрининги',
+            'onsites': 'онсайты', 'offers': 'офферы', 'rejections': 'реджекты',
+            'views': 'просмотры', 'incoming': 'входящие'
+        }
+        
+        field_name = field_names.get(field, field)
+        text = f"✏️ Введите новое значение для {field_name}:"
+        
+        await query.message.edit_text(text)
+        await state.set_state(FunnelStates.edit_entering_value)
         
     elif data == "show_faq":
         faq_text = get_faq_text()
@@ -277,25 +398,60 @@ async def show_reminder_settings(user_id: int, message, state: FSMContext):
     await message.edit_text(text)
     await state.set_state(FunnelStates.waiting_for_reminder_settings)
 
-async def show_edit_data_menu(user_id: int, message):
-    """Показать меню редактирования данных"""
+async def show_step_by_step_input(user_id: int, message, state: FSMContext):
+    """Показать пошаговый ввод данных"""
+    channels = get_user_channels(user_id)
+    
+    text = "📊 Добавление данных за неделю\n\nВыберите канал:"
+    
+    keyboard_buttons = []
+    for channel in channels:
+        keyboard_buttons.append([InlineKeyboardButton(text=channel, callback_data=f"select_channel_{channel}")])
+    
+    keyboard_buttons.append([InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="main_menu")])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    await message.edit_text(text, reply_markup=keyboard)
+    await state.set_state(FunnelStates.choosing_channel)
+
+async def show_step_by_step_edit(user_id: int, message, state: FSMContext):
+    """Показать пошаговое редактирование данных"""
+    history = get_user_history(user_id)
+    if not history:
+        await message.edit_text("📝 Нет данных для редактирования\n\nСначала добавьте данные за неделю", 
+                               reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                                   [InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="main_menu")]
+                               ]))
+        return
+    
+    # Получаем уникальные недели
+    weeks = list(set([row['week_start'] for row in history]))
+    weeks.sort(reverse=True)
+    
+    text = "✏️ Редактирование данных\n\nВыберите неделю:"
+    
+    keyboard_buttons = []
+    for week in weeks[:10]:  # Показываем последние 10 недель
+        keyboard_buttons.append([InlineKeyboardButton(text=f"📅 {week}", callback_data=f"edit_week_{week}")])
+    
+    keyboard_buttons.append([InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="main_menu")])
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+    
+    await message.edit_text(text, reply_markup=keyboard)
+    await state.set_state(FunnelStates.edit_choosing_week)
+
+async def show_reminder_buttons(user_id: int, message):
+    """Показать кнопки настройки напоминаний"""
     text = """
-✏️ Изменение данных
+⏰ Настройка напоминаний
 
-Для изменения конкретного поля введите команду в формате:
-неделя канал поле значение
-
-Пример:
-2024-12-16 LinkedIn applications 15
-
-Доступные поля зависят от типа воронки:
-• Активная: applications, responses, screenings, onsites, offers, rejections
-• Пассивная: views, incoming, screenings, onsites, offers, rejections
-
-Недели указываются в формате YYYY-MM-DD (понедельник недели)
+Выберите частоту напоминаний:
 """
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📅 Ежедневно в 18:00", callback_data="reminder_daily")],
+        [InlineKeyboardButton(text="📆 Еженедельно (понедельник 10:00)", callback_data="reminder_weekly")],
+        [InlineKeyboardButton(text="🔕 Отключить", callback_data="reminder_off")],
         [InlineKeyboardButton(text="⬅️ Назад в меню", callback_data="main_menu")]
     ])
     
@@ -430,29 +586,159 @@ async def process_week_data(message: types.Message, state: FSMContext):
     except Exception as e:
         await message.answer(f"❌ Произошла ошибка: {str(e)}")
 
-@dp.message(FunnelStates.waiting_for_reminder_settings)
-async def process_reminder_settings(message: types.Message, state: FSMContext):
-    """Обработка настроек напоминаний"""
-    user_id = message.from_user.id
-    frequency = message.text.strip().lower()
-    
-    if frequency in ['daily', 'weekly', 'off']:
-        set_user_reminders(user_id, frequency)
+# Step-by-step input handlers
+@dp.message(FunnelStates.entering_applications)
+async def process_applications(message: types.Message, state: FSMContext):
+    """Обработка ввода первого поля"""
+    try:
+        value = int(message.text.strip())
+        data = await state.get_data()
+        funnel_type = data.get('funnel_type', 'active')
         
-        if frequency == 'off':
-            text = "⏰ Напоминания отключены"
-        elif frequency == 'daily':
-            text = "⏰ Напоминания настроены: ежедневно в 18:00"
+        if funnel_type == 'active':
+            await state.update_data(applications=value)
+            field_name = "ответы (responses)"
         else:
-            text = "⏰ Напоминания настроены: еженедельно по понедельникам в 10:00"
+            await state.update_data(views=value)
+            field_name = "входящие (incoming)"
             
-        await message.answer(text)
-        await state.clear()
-        # Показываем главное меню новым сообщением
-        user_data = get_user_funnels(user_id)
-        current_funnel = "Активная" if user_data.get('active_funnel') == 'active' else "Пассивная"
+        await message.answer(f"✅ Сохранено\n\nТеперь введите количество {field_name}:")
+        await state.set_state(FunnelStates.entering_responses)
+    except ValueError:
+        await message.answer("❌ Введите число")
+
+@dp.message(FunnelStates.entering_responses)
+async def process_responses(message: types.Message, state: FSMContext):
+    """Обработка ввода второго поля"""
+    try:
+        value = int(message.text.strip())
+        data = await state.get_data()
+        funnel_type = data.get('funnel_type', 'active')
         
-        menu_text = f"""
+        if funnel_type == 'active':
+            await state.update_data(responses=value)
+        else:
+            await state.update_data(incoming=value)
+            
+        await message.answer(f"✅ Сохранено\n\nТеперь введите количество скрининги (screenings):")
+        await state.set_state(FunnelStates.entering_screenings)
+    except ValueError:
+        await message.answer("❌ Введите число")
+
+@dp.message(FunnelStates.entering_screenings)
+async def process_screenings(message: types.Message, state: FSMContext):
+    """Обработка ввода скринингов"""
+    try:
+        value = int(message.text.strip())
+        await state.update_data(screenings=value)
+            
+        await message.answer(f"✅ Сохранено\n\nТеперь введите количество онсайты (onsites):")
+        await state.set_state(FunnelStates.entering_onsites)
+    except ValueError:
+        await message.answer("❌ Введите число")
+
+@dp.message(FunnelStates.entering_onsites)
+async def process_onsites(message: types.Message, state: FSMContext):
+    """Обработка ввода онсайтов"""
+    try:
+        value = int(message.text.strip())
+        await state.update_data(onsites=value)
+            
+        await message.answer(f"✅ Сохранено\n\nТеперь введите количество офферы (offers):")
+        await state.set_state(FunnelStates.entering_offers)
+    except ValueError:
+        await message.answer("❌ Введите число")
+
+@dp.message(FunnelStates.entering_offers)
+async def process_offers(message: types.Message, state: FSMContext):
+    """Обработка ввода офферов"""
+    try:
+        value = int(message.text.strip())
+        await state.update_data(offers=value)
+            
+        await message.answer(f"✅ Сохранено\n\nНаконец, введите количество реджекты (rejections):")
+        await state.set_state(FunnelStates.entering_rejections)
+    except ValueError:
+        await message.answer("❌ Введите число")
+
+@dp.message(FunnelStates.entering_rejections)
+async def process_rejections(message: types.Message, state: FSMContext):
+    """Обработка завершающего ввода"""
+    try:
+        value = int(message.text.strip())
+        user_id = message.from_user.id
+        data = await state.get_data()
+        
+        # Получаем текущую неделю
+        today = datetime.now()
+        monday = today - timedelta(days=today.weekday())
+        week_start = monday.strftime('%Y-%m-%d')
+        
+        user_data = get_user_funnels(user_id)
+        funnel_type = user_data.get('active_funnel', 'active')
+        
+        # Формируем финальные данные
+        if funnel_type == 'active':
+            week_data = {
+                'applications': data.get('applications', 0),
+                'responses': data.get('responses', 0),
+                'screenings': data.get('screenings', 0),
+                'onsites': data.get('onsites', 0),
+                'offers': data.get('offers', 0),
+                'rejections': value
+            }
+        else:
+            week_data = {
+                'views': data.get('views', 0),
+                'incoming': data.get('incoming', 0),
+                'screenings': data.get('screenings', 0),
+                'onsites': data.get('onsites', 0),
+                'offers': data.get('offers', 0),
+                'rejections': value
+            }
+        
+        # Сохраняем данные
+        channel = data.get('selected_channel')
+        add_week_data(user_id, week_start, channel, funnel_type, week_data)
+        
+        await message.answer(f"✅ Данные успешно сохранены для канала {channel} за неделю {week_start}!")
+        await state.clear()
+        
+        # Показываем главное меню
+        await show_main_menu_new_message(user_id, message)
+        
+    except ValueError:
+        await message.answer("❌ Введите число")
+
+@dp.message(FunnelStates.edit_entering_value)
+async def process_edit_value(message: types.Message, state: FSMContext):
+    """Обработка редактирования значения"""
+    try:
+        value = int(message.text.strip())
+        user_id = message.from_user.id
+        data = await state.get_data()
+        
+        week = data.get('selected_week')
+        channel = data.get('selected_edit_channel')
+        field = data.get('selected_field')
+        
+        if update_week_field(user_id, week, channel, field, value):
+            await message.answer(f"✅ Обновлено: {week} {channel} {field} = {value}")
+        else:
+            await message.answer("❌ Не удалось обновить данные")
+            
+        await state.clear()
+        await show_main_menu_new_message(user_id, message)
+        
+    except ValueError:
+        await message.answer("❌ Введите число")
+
+async def show_main_menu_new_message(user_id: int, message):
+    """Показать главное меню новым сообщением"""
+    user_data = get_user_funnels(user_id)
+    current_funnel = "Активная" if user_data.get('active_funnel') == 'active' else "Пассивная"
+    
+    menu_text = f"""
 📊 Главное меню
 
 Текущая воронка: {current_funnel}
@@ -460,21 +746,19 @@ async def process_reminder_settings(message: types.Message, state: FSMContext):
 
 Выберите действие:
 """
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
-            [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
-            [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
-            [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
-            [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")],
-            [InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")],
-            [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
-            [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
-        ])
-        
-        await message.answer(menu_text, reply_markup=keyboard)
-    else:
-        await message.answer("❌ Неверная частота. Используйте: daily, weekly или off")
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
+        [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
+        [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
+        [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
+        [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")],
+        [InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")],
+        [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
+        [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
+    ])
+    
+    await message.answer(menu_text, reply_markup=keyboard)
 
 @dp.message()
 async def handle_edit_command(message: types.Message):

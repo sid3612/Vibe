@@ -70,7 +70,7 @@ def generate_csv_export(user_id: int) -> str:
             'updated_at': 'Обновлено'
         }
     
-    # Создаем CSV writer
+    # Создаем CSV writer с UTF-8 BOM для корректного отображения в Excel
     writer = csv.DictWriter(output, fieldnames=fieldnames, delimiter=';')
     
     # Записываем заголовок с переводом
@@ -94,11 +94,12 @@ def generate_csv_export(user_id: int) -> str:
         
         writer.writerow(csv_row)
     
-    # Получаем содержимое CSV
+    # Получаем содержимое CSV с UTF-8 BOM
     csv_content = output.getvalue()
     output.close()
     
-    return csv_content
+    # Добавляем UTF-8 BOM для корректного отображения в Excel
+    return '\ufeff' + csv_content
 
 def generate_summary_report(user_id: int, weeks: int = 4) -> str:
     """Генерировать сводный отчет за последние N недель"""
