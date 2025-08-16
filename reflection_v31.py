@@ -245,17 +245,10 @@ async def handle_reflection_v31_no(callback_query: types.CallbackQuery, state: F
     if callback_query.message and hasattr(callback_query.message, 'edit_text'):
         await callback_query.message.edit_text("Хорошо, форма рефлексии пропущена.")
         
-        # Check for CVR recommendations after declining reflection form (Iteration 4)
+        # Показываем главное меню
+        from main import show_main_menu
         user_id = callback_query.from_user.id
-        data = await state.get_data()
-        cvr_analysis = data.get('cvr_analysis')
-        
-        if cvr_analysis and cvr_analysis.get("status") == "problems_found":
-            from main import send_cvr_recommendations
-            await send_cvr_recommendations(callback_query.message, user_id, cvr_analysis)
-        else:
-            from main import show_main_menu
-            await show_main_menu(user_id, callback_query.message)
+        await show_main_menu(user_id, callback_query.message)
     
     await state.clear()
     await callback_query.answer()
@@ -694,17 +687,10 @@ async def save_and_complete_form_new_message(message: types.Message, state: FSMC
     
     if success:
         await message.answer("✅ Форма рефлексии сохранена!")
-        
-        # Check for CVR recommendations after reflection form completion (Iteration 4)
+        # Show main menu after successful save
+        from main import show_main_menu
         user_id = context['user_id']
-        cvr_analysis = data.get('cvr_analysis')
-        
-        if cvr_analysis and cvr_analysis.get("status") == "problems_found":
-            from main import send_cvr_recommendations
-            await send_cvr_recommendations(message, user_id, cvr_analysis)
-        else:
-            from main import show_main_menu
-            await show_main_menu(user_id, message)
+        await show_main_menu(user_id, message)
     else:
         await message.answer("❌ Ошибка при сохранении формы рефлексии")
         from main import show_main_menu
@@ -733,17 +719,10 @@ async def save_and_complete_form(message: types.Message, state: FSMContext):
     
     if success:
         await message.answer("✅ Форма рефлексии сохранена!")
-        
-        # Check for CVR recommendations after reflection form completion (Iteration 4)
+        # Show main menu after successful save
+        from main import show_main_menu
         user_id = context['user_id']
-        cvr_analysis = data.get('cvr_analysis')
-        
-        if cvr_analysis and cvr_analysis.get("status") == "problems_found":
-            from main import send_cvr_recommendations
-            await send_cvr_recommendations(message, user_id, cvr_analysis)
-        else:
-            from main import show_main_menu
-            await show_main_menu(user_id, message)
+        await show_main_menu(user_id, message)
     else:
         await message.answer("❌ Ошибка при сохранении формы рефлексии")
         from main import show_main_menu

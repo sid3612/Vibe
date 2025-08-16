@@ -167,6 +167,55 @@ async def cmd_profile_delete(message: types.Message):
         reply_markup=get_confirm_delete_keyboard()
     )
 
+async def handle_cvr_analysis_button(query: CallbackQuery, user_id: int):
+    """
+    Обработчик кнопки "Анализ CVR" - запуск анализа по запросу пользователя
+    """
+    await query.answer("Анализирую ваши данные...")
+    
+    # Запускаем анализ CVR
+    cvr_analysis = await analyze_and_recommend(user_id)
+    
+    if cvr_analysis.get("status") == "problems_found":
+        await send_cvr_recommendations(query.message, user_id, cvr_analysis)
+    elif cvr_analysis.get("status") == "no_problems":
+        await query.message.edit_text(
+            "🎉 **Анализ CVR завершен**\n\n"
+            "Отличные новости! Ваши показатели конверсии в норме. "
+            "Все CVR находятся на достаточном уровне для получения статистически значимых результатов.\n\n"
+            "Продолжайте в том же духе! 💪",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
+            ])
+        )
+    elif cvr_analysis.get("status") == "insufficient_data":
+        await query.message.edit_text(
+            "📊 **Анализ CVR**\n\n"
+            "Недостаточно данных для анализа конверсии. "
+            "Для точного анализа CVR нужно:\n\n"
+            "• Минимум 5 записей в знаменателе каждого этапа\n"
+            "• Данные за последние недели\n"
+            "• Заполненный профиль кандидата\n\n"
+            "Добавьте больше данных и попробуйте снова.",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="➕ Добавить данные", callback_data="add_week_data")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
+            ])
+        )
+    else:
+        # Ошибка анализа
+        error_msg = cvr_analysis.get("message", "Неизвестная ошибка")
+        await query.message.edit_text(
+            f"❌ **Ошибка анализа CVR**\n\n{error_msg}\n\n"
+            "Попробуйте позже или обратитесь в поддержку.",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
+            ])
+        )
+
 async def send_cvr_recommendations(message, user_id: int, cvr_analysis: dict):
     """
     Отправляет пользователю рекомендации на основе анализа CVR
@@ -257,6 +306,7 @@ async def show_main_menu(user_id: int, message_or_query):
         [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
         [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
         [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
+        [InlineKeyboardButton(text="🎯 Анализ CVR", callback_data="cvr_analysis")],
         [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")],
         [InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")],
         [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
@@ -307,6 +357,9 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
         
     elif data == "main_menu":
         await show_main_menu(user_id, query.message)
+    
+    elif data == "cvr_analysis":
+        await handle_cvr_analysis_button(query, user_id)
         
     elif data == "change_funnel":
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
@@ -1154,40 +1207,12 @@ async def process_rejections(message: types.Message, state: FSMContext):
         
         sections = ReflectionV31System.check_reflection_trigger(user_id, week_start, channel, funnel_type, old_data_dict, new_data_dict)
         
-        # Check for CVR problems and generate recommendations (Iteration 4)
-        try:
-            cvr_analysis = await analyze_and_recommend_async(user_id, use_api=True)
-            if cvr_analysis and cvr_analysis.get("status") == "problems_found":
-                # Store CVR recommendations for sending after reflection form
-                await state.update_data(cvr_analysis=cvr_analysis)
-                print(f"💡 CVR Analysis: {cvr_analysis['message']}")
-        except Exception as e:
-            print(f"⚠️ CVR Analysis failed: {e}")
-        
         if sections:
-            # Store state data for reflection form
-            await state.update_data(
-                reflection_sections=sections,
-                reflection_context={
-                    'user_id': user_id,
-                    'week_start': week_start,
-                    'channel': channel,
-                    'funnel_type': funnel_type
-                }
-            )
             # Offer reflection form using PRD v3.1 system
             await ReflectionV31System.offer_reflection_form(message, user_id, week_start, channel, funnel_type, sections)
         else:
-            # Check if we have CVR recommendations to send
-            current_data = await state.get_data()
-            cvr_analysis = current_data.get('cvr_analysis')
-            
-            if cvr_analysis and cvr_analysis.get("status") == "problems_found":
-                await send_cvr_recommendations(message, user_id, cvr_analysis)
-                await state.clear()
-            else:
-                # If no triggers and no recommendations, show main menu
-                await show_main_menu(user_id, message)
+            # Show main menu after data addition
+            await show_main_menu(user_id, message)
         
     except ValueError:
         # Only respond with error if still in the rejections state
