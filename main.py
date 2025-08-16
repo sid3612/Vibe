@@ -19,7 +19,7 @@ from reminders import setup_reminders, send_reminder
 from profile import (ProfileStates, format_profile_display)
 import json
 from validators import parse_salary_string, parse_list_input, validate_superpowers
-from keyboards import get_level_keyboard, get_company_types_keyboard, get_skip_back_keyboard, get_back_keyboard, get_profile_actions_keyboard, get_profile_edit_fields_keyboard, get_confirm_delete_keyboard, get_final_review_keyboard
+from keyboards import get_level_keyboard, get_company_types_keyboard, get_skip_back_keyboard, get_back_keyboard, get_profile_actions_keyboard, get_profile_edit_fields_keyboard, get_confirm_delete_keyboard, get_final_review_keyboard, get_funnel_type_keyboard
 # Removed old reflection system imports - now using PRD v3.1
 # from reflection_forms import ReflectionTrigger, ReflectionQueue
 # from integration_v3 import register_reflection_handlers
@@ -172,7 +172,7 @@ async def cmd_profile_delete(message: types.Message):
 async def show_main_menu(user_id: int, message_or_query):
     """Показать главное меню"""
     user_data = get_user_funnels(user_id)
-    current_funnel = "Активная" if user_data.get('active_funnel') == 'active' else "Пассивная"
+    current_funnel = "🧑‍💻 Активный поиск" if user_data.get('active_funnel') == 'active' else "👀 Пассивный поиск"
     
     menu_text = f"""
 📊 Главное меню
@@ -214,22 +214,36 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
     user_id = query.from_user.id
     
     if data == "funnel_active":
-        set_active_funnel(user_id, "active")
-        await query.answer("Выбрана активная воронка")
-        await show_main_menu(user_id, query.message)
+        # Check if we're in profile creation state
+        current_state = await state.get_state()
+        if current_state == ProfileStates.funnel_type:
+            await state.update_data(preferred_funnel_type="active")
+            await query.answer("Выбран активный поиск")
+            await start_optional_fields_flow(query.message, state)
+        else:
+            set_active_funnel(user_id, "active")
+            await query.answer("Выбрана активная воронка")
+            await show_main_menu(user_id, query.message)
         
     elif data == "funnel_passive":
-        set_active_funnel(user_id, "passive")
-        await query.answer("Выбрана пассивная воронка")
-        await show_main_menu(user_id, query.message)
+        # Check if we're in profile creation state
+        current_state = await state.get_state()
+        if current_state == ProfileStates.funnel_type:
+            await state.update_data(preferred_funnel_type="passive")
+            await query.answer("Выбран пассивный поиск")
+            await start_optional_fields_flow(query.message, state)
+        else:
+            set_active_funnel(user_id, "passive")
+            await query.answer("Выбрана пассивная воронка")
+            await show_main_menu(user_id, query.message)
         
     elif data == "main_menu":
         await show_main_menu(user_id, query.message)
         
     elif data == "change_funnel":
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🎯 Активная воронка", callback_data="funnel_active")],
-            [InlineKeyboardButton(text="👀 Пассивная воронка", callback_data="funnel_passive")],
+            [InlineKeyboardButton(text="🧑‍💻 Активный поиск (я подаюсь)", callback_data="funnel_active")],
+            [InlineKeyboardButton(text="👀 Пассивный поиск (мне пишут)", callback_data="funnel_passive")],
             [InlineKeyboardButton(text="⬅️ Назад", callback_data="main_menu")]
         ])
         await query.message.edit_text("Выберите тип воронки:", reply_markup=keyboard)
@@ -838,7 +852,7 @@ async def process_week_data(message: types.Message, state: FSMContext):
             await state.clear()
             # Показываем главное меню новым сообщением
             user_data = get_user_funnels(user_id)
-            current_funnel = "Активная" if user_data.get('active_funnel') == 'active' else "Пассивная"
+            current_funnel = "🧑‍💻 Активный поиск" if user_data.get('active_funnel') == 'active' else "👀 Пассивный поиск"
             
             menu_text = f"""
 📊 Главное меню
@@ -1053,7 +1067,7 @@ async def process_edit_value(message: types.Message, state: FSMContext):
 async def show_main_menu_new_message(user_id: int, message):
     """Deprecated - use show_main_menu instead"""
     await show_main_menu(user_id, message)
-    current_funnel = "Активная" if user_data.get('active_funnel') == 'active' else "Пассивная"
+    current_funnel = "🧑‍💻 Активный поиск" if user_data.get('active_funnel') == 'active' else "👀 Пассивный поиск"
     
     menu_text = f"""
 📊 Главное меню
@@ -1187,10 +1201,18 @@ async def process_profile_deadline(message: types.Message, state: FSMContext):
     target_end_date = calculate_target_end_date(weeks)
     await state.update_data(deadline_weeks=weeks, target_end_date=target_end_date)
     
-    # Start optional fields flow
-    await start_optional_fields_flow(message, state)
+    # Ask for funnel type preference
+    await message.answer(
+        "📊 Выберите ваш основной тип поиска работы:\n\n"
+        "🧑‍💻 <b>Активный поиск</b> - вы подаёте заявки на вакансии\n"
+        "👀 <b>Пассивный поиск</b> - работодатели находят вас через профиль\n\n"
+        "Этот выбор определит, какую воронку вы будете использовать по умолчанию.",
+        reply_markup=get_funnel_type_keyboard(),
+        parse_mode="HTML"
+    )
+    await state.set_state(ProfileStates.funnel_type)
 
-# Optional fields flow functions
+# Optional fields flow functions  
 async def start_optional_fields_flow(message, state: FSMContext):
     """Start the optional fields collection"""
     await message.answer(
@@ -1275,7 +1297,8 @@ async def finish_profile_creation(message, state: FSMContext):
         'target_location': data['target_location'],
         'level': data['level'],
         'deadline_weeks': data['deadline_weeks'],
-        'target_end_date': data['target_end_date']
+        'target_end_date': data['target_end_date'],
+        'preferred_funnel_type': data.get('preferred_funnel_type', 'active')
     }
     
     # Add optional fields if present

@@ -104,6 +104,14 @@ def get_confirm_delete_keyboard():
         ]
     ])
 
+def get_funnel_type_keyboard():
+    """Keyboard for selecting funnel type"""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🧑‍💻 Активный поиск (я подаюсь)", callback_data="funnel_active")],
+        [InlineKeyboardButton(text="👀 Пассивный поиск (мне пишут)", callback_data="funnel_passive")],
+        [InlineKeyboardButton(text="Назад", callback_data="back_step")]
+    ])
+
 def get_final_review_keyboard():
     """Final review options before saving"""
     return InlineKeyboardMarkup(inline_keyboard=[

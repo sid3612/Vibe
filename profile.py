@@ -17,6 +17,7 @@ class ProfileStates(StatesGroup):
     level = State()
     level_custom = State()
     deadline_weeks = State()
+    funnel_type = State()
     
     # Optional fields with skip capability
     role_synonyms = State()
@@ -51,6 +52,16 @@ def format_profile_display(profile_data: dict) -> str:
     result.append(f"Локация поиска: {profile_data['target_location']}")
     result.append(f"Срок поиска: {profile_data['deadline_weeks']} недель")
     result.append(f"Дедлайн: {profile_data['target_end_date']}")
+    
+    # Funnel type preference
+    funnel_type = profile_data.get('preferred_funnel_type', 'active')
+    funnel_name = "🧑‍💻 Активный поиск" if funnel_type == 'active' else "👀 Пассивный поиск"
+    result.append(f"Предпочитаемый тип: {funnel_name}")
+    
+    # Show preferred funnel type
+    funnel_type = profile_data.get('preferred_funnel_type', 'active')
+    funnel_display = "🧑‍💻 Активный поиск" if funnel_type == 'active' else "👀 Пассивный поиск"
+    result.append(f"Тип поиска: {funnel_display}")
     result.append("")
     
     # Optional fields

@@ -70,6 +70,7 @@ def init_db():
             level TEXT NOT NULL,
             deadline_weeks INTEGER NOT NULL,
             target_end_date TEXT NOT NULL,
+            preferred_funnel_type TEXT NOT NULL DEFAULT 'active',
             
             role_synonyms_json TEXT,
             salary_min REAL,
@@ -81,12 +82,29 @@ def init_db():
             competencies_json TEXT,
             superpowers_json TEXT,
             constraints_text TEXT,
+            linkedin_url TEXT,
             
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (user_id) REFERENCES users (user_id)
         )
     """)
+    
+    # Add preferred_funnel_type column if it doesn't exist (migration)
+    try:
+        cursor.execute("ALTER TABLE profiles ADD COLUMN preferred_funnel_type TEXT NOT NULL DEFAULT 'active'")
+        print("Added preferred_funnel_type column to profiles table")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
+        
+    # Add linkedin_url column if it doesn't exist (migration)
+    try:
+        cursor.execute("ALTER TABLE profiles ADD COLUMN linkedin_url TEXT")
+        print("Added linkedin_url column to profiles table")
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
     
     # Триггер для обновления updated_at
     cursor.execute("""
@@ -147,25 +165,44 @@ def add_user(user_id: int, username: str):
         conn.close()
 
 def get_user_funnels(user_id: int) -> dict:
-    """Получить информацию о воронках пользователя"""
+    """Получить настройки пользователя с приоритетом профиля"""
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Try to get funnel preference from profile first
+    cursor.execute("""
+        SELECT preferred_funnel_type
+        FROM profiles
+        WHERE user_id = ?
+    """, (user_id,))
+    
+    profile_result = cursor.fetchone()
+    
+    # Get user settings
     cursor.execute("""
         SELECT active_funnel, reminder_frequency
         FROM users
         WHERE user_id = ?
     """, (user_id,))
     
-    result = cursor.fetchone()
+    user_result = cursor.fetchone()
     conn.close()
     
-    if result:
-        return {
-            'active_funnel': result['active_funnel'],
-            'reminder_frequency': result['reminder_frequency']
-        }
-    return {'active_funnel': 'active', 'reminder_frequency': 'off'}
+    # Use profile preference if available, otherwise user setting, otherwise default
+    active_funnel = 'active'
+    if profile_result and profile_result['preferred_funnel_type']:
+        active_funnel = profile_result['preferred_funnel_type']
+    elif user_result and user_result['active_funnel']:
+        active_funnel = user_result['active_funnel']
+    
+    reminder_frequency = 'off'
+    if user_result and user_result['reminder_frequency']:
+        reminder_frequency = user_result['reminder_frequency']
+    
+    return {
+        'active_funnel': active_funnel,
+        'reminder_frequency': reminder_frequency
+    }
 
 def set_active_funnel(user_id: int, funnel_type: str):
     """Установить активный тип воронки"""
@@ -466,45 +503,51 @@ def save_profile(user_id: int, profile_data: dict):
         cursor.execute("""
             UPDATE profiles SET 
                 role = ?, current_location = ?, target_location = ?, level = ?,
-                deadline_weeks = ?, target_end_date = ?, role_synonyms_json = ?,
+                deadline_weeks = ?, target_end_date = ?, preferred_funnel_type = ?, role_synonyms_json = ?,
                 salary_min = ?, salary_max = ?, salary_currency = ?, salary_period = ?,
                 company_types_json = ?, industries_json = ?, competencies_json = ?,
-                superpowers_json = ?, constraints_text = ?, linkedin = ?
+                superpowers_json = ?, constraints_text = ?, linkedin_url = ?
             WHERE user_id = ?
         """, (
             profile_data['role'], profile_data['current_location'], profile_data['target_location'],
             profile_data['level'], profile_data['deadline_weeks'], profile_data['target_end_date'],
-            profile_data.get('role_synonyms_json'), profile_data.get('salary_min'),
-            profile_data.get('salary_max'), profile_data.get('salary_currency'),
+            profile_data.get('preferred_funnel_type', 'active'), profile_data.get('role_synonyms_json'), 
+            profile_data.get('salary_min'), profile_data.get('salary_max'), profile_data.get('salary_currency'),
             profile_data.get('salary_period'), profile_data.get('company_types_json'),
             profile_data.get('industries_json'), profile_data.get('competencies_json'),
             profile_data.get('superpowers_json'), profile_data.get('constraints_text'),
-            profile_data.get('linkedin'), user_id
+            profile_data.get('linkedin_url'), user_id
         ))
     else:
         # Insert new profile
         cursor.execute("""
             INSERT INTO profiles (
                 user_id, role, current_location, target_location, level,
-                deadline_weeks, target_end_date, role_synonyms_json,
+                deadline_weeks, target_end_date, preferred_funnel_type, role_synonyms_json,
                 salary_min, salary_max, salary_currency, salary_period,
                 company_types_json, industries_json, competencies_json,
-                superpowers_json, constraints_text, linkedin
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                superpowers_json, constraints_text, linkedin_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             user_id, profile_data['role'], profile_data['current_location'],
             profile_data['target_location'], profile_data['level'],
             profile_data['deadline_weeks'], profile_data['target_end_date'],
-            profile_data.get('role_synonyms_json'), profile_data.get('salary_min'),
-            profile_data.get('salary_max'), profile_data.get('salary_currency'),
+            profile_data.get('preferred_funnel_type', 'active'), profile_data.get('role_synonyms_json'), 
+            profile_data.get('salary_min'), profile_data.get('salary_max'), profile_data.get('salary_currency'),
             profile_data.get('salary_period'), profile_data.get('company_types_json'),
             profile_data.get('industries_json'), profile_data.get('competencies_json'),
             profile_data.get('superpowers_json'), profile_data.get('constraints_text'),
-            profile_data.get('linkedin')
+            profile_data.get('linkedin_url')
         ))
     
     conn.commit()
+    
+    # Set the user's active funnel to match their profile preference
+    funnel_type = profile_data.get('preferred_funnel_type', 'active')
+    set_active_funnel(user_id, funnel_type)
+    
     conn.close()
+    return True
 
 def get_profile(user_id: int) -> dict:
     """Get user profile"""
