@@ -109,7 +109,7 @@ class ReflectionV31System:
             'screening': '📞 Скрининг',
             'onsite': '🧑‍💼 Онсайт', 
             'offer': '🏁 Оффер',
-            'reject_no_interview': '❌ Отказ',
+            'reject_no_interview': '❌ Отказ без интервью',
             'reject_after_interview': '❌❌ Реджект после интервью'
         }
         return stage_map.get(stage, stage)
@@ -300,9 +300,9 @@ async def process_next_section(message: types.Message, state: FSMContext):
     # Check if this is a rejection section - ask for rejection type first
     if current_section['stage'] == 'reject_no_interview':
         reject_type_keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="Отказ", callback_data="reject_type_no_interview")],
-            [InlineKeyboardButton(text="Реджект после интервью с рекрутером", callback_data="reject_type_recruiter")],
-            [InlineKeyboardButton(text="Реджект после тех интервью", callback_data="reject_type_technical")]
+            [InlineKeyboardButton(text="Отказ без интервью", callback_data="reject_type_no_interview")],
+            [InlineKeyboardButton(text="Отказ после интервью с рекрутером", callback_data="reject_type_recruiter")],
+            [InlineKeyboardButton(text="Отказ после тех интервью", callback_data="reject_type_technical")]
         ])
         
         header_text += f"Тип отказа?"
@@ -357,9 +357,9 @@ async def handle_section_reject_type(callback_query: types.CallbackQuery, state:
         
     # Extract rejection type from callback data
     reject_type_map = {
-        "reject_type_no_interview": "Отказ",
-        "reject_type_recruiter": "Реджект после интервью с рекрутером", 
-        "reject_type_technical": "Реджект после тех интервью"
+        "reject_type_no_interview": "Отказ без интервью",
+        "reject_type_recruiter": "Отказ после интервью с рекрутером", 
+        "reject_type_technical": "Отказ после тех интервью"
     }
     
     reject_type = reject_type_map.get(callback_query.data, "Неизвестный тип")
