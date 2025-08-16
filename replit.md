@@ -6,14 +6,6 @@ Job Funnel Coach is a Telegram bot designed to help users track and analyze job 
 
 ## Recent Changes (August 2025)
 
-### UI Improvements (August 16, 2025)
-- **Start Screen Redesign**: Updated /start screen with HackOFFer branding and AI-mentor positioning
-- **Button Reorganization**: Moved "🔄 Сменить воронку" button from main menu to profile menu for better user workflow
-- **Menu Cleanup**: Removed duplicate "❓ FAQ" button from profile menu (kept in main menu and start screen)
-- **Enhanced Navigation**: Streamlined user journey with clearer button placement and reduced menu clutter
-- **Brand Integration**: Incorporated HackOFFer messaging emphasizing conversion analysis and AI-mentorship
-- **User Flow Optimization**: Start screen now guides users to profile creation first, then data entry
-
 ### Profile-Integrated Funnel Type Selection (August 16, 2025)
 - **One-Time Funnel Selection**: Integrated funnel type choice into profile creation process
 - **Database Schema Update**: Added `preferred_funnel_type` column to profiles table with automatic migration
