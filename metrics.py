@@ -19,10 +19,10 @@ def calculate_cvr_metrics(data: Dict[str, Any], funnel_type: str) -> Dict[str, s
         # CVR2: Скрининги / Ответы
         metrics['cvr2'] = calculate_percentage(screenings, responses)
         
-        # CVR3: Онсайты / Скрининги
+        # CVR3: Интервью / Скрининги
         metrics['cvr3'] = calculate_percentage(onsites, screenings)
         
-        # CVR4: Офферы / Онсайты
+        # CVR4: Офферы / Интервью
         metrics['cvr4'] = calculate_percentage(offers, onsites)
         
     else:  # passive
@@ -39,10 +39,10 @@ def calculate_cvr_metrics(data: Dict[str, Any], funnel_type: str) -> Dict[str, s
         # CVR2-passive: Скрининги / Входящие
         metrics['cvr2'] = calculate_percentage(screenings, incoming)
         
-        # CVR3-passive: Онсайты / Скрининги
+        # CVR3-passive: Интервью / Скрининги
         metrics['cvr3'] = calculate_percentage(onsites, screenings)
         
-        # CVR4-passive: Офферы / Онсайты
+        # CVR4-passive: Офферы / Интервью
         metrics['cvr4'] = calculate_percentage(offers, onsites)
     
     return metrics
@@ -78,7 +78,7 @@ def format_metrics_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
             week_data = weeks_data[week]
             result.append(f"Неделя: {week}\n")
             result.append("-" * 50)
-            result.append("Канал        Подачи Ответы Скрин. Онс. Офф. CVR1 CVR2 CVR3 CVR4")
+            result.append("Канал        Подачи Ответы Скрин. Инт. Офф. CVR1 CVR2 CVR3 CVR4")
             result.append("-" * 70)
             
             for row in week_data:
@@ -98,7 +98,7 @@ def format_metrics_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
             week_data = weeks_data[week]
             result.append(f"Неделя: {week}\n")
             result.append("-" * 50)
-            result.append("Канал        Просм. Вход. Скрин. Онс. Офф. CVR1 CVR2 CVR3 CVR4")
+            result.append("Канал        Просм. Вход. Скрин. Инт. Офф. CVR1 CVR2 CVR3 CVR4")
             result.append("-" * 70)
             
             for row in week_data:
@@ -130,7 +130,7 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
             
             result.append(f"📅 Неделя: {week}")
             result.append("-" * 50)
-            result.append("Канал       Подач Отв Скр Онс Офф Рдж")
+            result.append("Канал       Подач Отв Скр Инт Офф Отк")
             result.append("-" * 50)
             
             total_apps = 0
@@ -197,7 +197,7 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
             
             result.append(f"📅 Неделя: {week}")
             result.append("-" * 50)
-            result.append("Канал       Просм Вх Скр Онс Офф Рдж")
+            result.append("Канал       Просм Вх Скр Инт Офф Отк")
             result.append("-" * 50)
             
             total_views = 0
