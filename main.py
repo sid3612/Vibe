@@ -381,7 +381,7 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
             f"📊 Интерес к продукту: {stats['unique_users']} пользователей",
             parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
+                [InlineKeyboardButton(text="🏠 На главную", callback_data="start_page")]
             ])
         )
         await query.answer("Спасибо за интерес к продукту!")
@@ -676,6 +676,28 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
         
         await query.message.edit_text(text)
         await state.set_state(FunnelStates.edit_entering_value)
+        
+    elif data == "start_page":
+        # Возврат на стартовую страницу
+        welcome_text = """👋HackOFFer — оффер быстрее и без догадок
+
+Когда кажется, что "где-то течёт", но непонятно где.
+
+HackOFFer — ваш AI-ментор по поиску работы: считает конверсию, находит узкие места и превращает их в понятные шаги.
+Начни с Заполнения профиля, а после Внеси данные за неделю.
+
+Выберите, с чего начнём:"""
+        
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📝 Заполнить профиль", callback_data="create_profile")],
+            [InlineKeyboardButton(text="📊 Внести данные за неделю", callback_data="data_entry")],
+            [InlineKeyboardButton(text="🎯 AI-анализ конверсии", callback_data="cvr_analysis")],
+            [InlineKeyboardButton(text="💳 Оплатить доступ", callback_data="payment_click")],
+            [InlineKeyboardButton(text="📚 Главное меню", callback_data="main_menu")],
+            [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
+        ])
+        
+        await query.message.edit_text(welcome_text, reply_markup=keyboard)
         
     elif data == "show_faq":
         faq_text = get_faq_text()
