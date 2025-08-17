@@ -227,13 +227,14 @@ class HypothesesManager:
                     # Ищем все гипотезы с данным hid
                     matching_rows = self.hypotheses_data[self.hypotheses_data['hid'].astype(str) == h_id]
                     for idx, row in matching_rows.iterrows():
+                        hypothesis_text = row['name'] if 'name' in row else 'Без описания'
                         hypotheses.append({
                             'id': h_id,
                             'title': f"Гипотеза {h_id}",
-                            'description': row['name'] if 'name' in row else 'Без описания',
+                            'description': hypothesis_text,
+                            'actions': hypothesis_text,  # Используем полный текст как действие
                             'cvr_focus': f"Тема: {row['h_topic']}" if 'h_topic' in row else 'Из базы гипотез',
                             'question': 'Подходит ли эта гипотеза для вашей ситуации?',
-                            'actions': row['name'] if 'name' in row else 'Нет действий',
                             'effect': 'Улучшение конверсии'
                         })
                         
