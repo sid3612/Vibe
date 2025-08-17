@@ -319,13 +319,14 @@ class CVRAutoAnalyzer:
         for i, hypothesis in enumerate(hypotheses, 1):
             # Получаем данные из Excel структуры
             h_id = hypothesis.get('id', f'H{i}')
-            # Используем содержимое гипотезы из столбца 'name' (description), а не title
+            # Используем полное содержимое гипотезы из столбца 'name'
             h_content = hypothesis.get('description', hypothesis.get('actions', 'Нет описания'))
-
-            prompt += f"\n\n{h_id}. {h_content}"
-
-            # Ограничиваем длину для читаемости промпта (увеличиваем лимит для полного содержания)
-            if len(h_content) > 500:
+            
+            # Отправляем полное содержимое гипотезы, а не только ID
+            prompt += f"\n\n{i}. {h_content}"
+            
+            # Если содержимое очень длинное, обрезаем для читаемости промпта
+            if len(h_content) > 800:
                 prompt += "..."
 
         prompt += f"""
