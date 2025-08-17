@@ -239,7 +239,8 @@ class HypothesesManager:
                             'effect': 'Улучшение конверсии'
                         })
                         
-                print(f"🔍 Найдено {len(hypotheses)} гипотез в Excel для {hypothesis_ids}")
+                print(f"🔍 Найдено {len(hypotheses)} гипотез в Excel для CVR правил {hypothesis_ids}")
+                print(f"📊 Каждая гипотеза содержит полное содержимое из столбца 'name'")
                 return hypotheses
                         
             except Exception as e:
