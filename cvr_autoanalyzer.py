@@ -206,12 +206,18 @@ class CVRAutoAnalyzer:
         profile = get_profile(user_id)
         reflection_history = get_reflection_history(user_id, 14)  # Рефлексии за последние 2 недели
 
-        # Собираем ВСЕ гипотезы без дедупликации по ID
+        # Собираем уникальные гипотезы с дедупликацией по ID
         all_hypotheses = []
+        seen_ids = set()
 
         for problem in problems:
             for hypothesis in problem.get('hypotheses', []):
-                all_hypotheses.append(hypothesis)
+                h_id = hypothesis.get('hid', hypothesis.get('id', ''))
+                if h_id and h_id not in seen_ids:
+                    all_hypotheses.append(hypothesis)
+                    seen_ids.add(h_id)
+                elif not h_id:  # Если нет ID, добавляем anyway
+                    all_hypotheses.append(hypothesis)
 
         # Формируем срез воронки
         funnel_snapshot = self._create_funnel_snapshot(problems)
@@ -312,22 +318,23 @@ class CVRAutoAnalyzer:
 
         prompt += f"\n\nДОСТУПНЫЕ ГИПОТЕЗЫ ДЛЯ РЕШЕНИЯ:"
 
-        # Отправляем все найденные гипотезы без ограничений
-        print(f"🔍 Отправляем в промпт {len(hypotheses)} гипотез")
+        # Ограничиваем до 50 гипотез для промпта
+        max_hypotheses = 50
+        limited_hypotheses = hypotheses[:max_hypotheses]
+        print(f"🔍 Отправляем в промпт {len(limited_hypotheses)} гипотез из {len(hypotheses)} найденных")
 
-        for i, hypothesis in enumerate(hypotheses, 1):
+        for i, hypothesis in enumerate(limited_hypotheses, 1):
             # Получаем полное содержимое гипотезы из столбца 'name' Excel файла
             h_content = hypothesis.get('name', hypothesis.get('description', hypothesis.get('actions', 'Нет описания')))
             h_id = hypothesis.get('hid', f'H{i}')
             
-            # Отправляем полное содержимое гипотезы
-            print(f"🔍 Гипотеза {h_id}: {h_content[:100]}...")
-            prompt += f"\n\n{i}. {h_content}"
+            # Ограничиваем длину каждой гипотезы до 400 символов для читаемости
+            if len(h_content) > 400:
+                h_content = h_content[:400] + "..."
             
-            # Если содержимое очень длинное, обрезаем для читаемости промпта
-            if len(h_content) > 800:
-                h_content_trimmed = h_content[:800] + "..."
-                prompt = prompt[:-len(h_content)] + h_content_trimmed
+            # Отправляем содержимое гипотезы с номером и ID
+            print(f"🔍 Гипотеза {h_id}: {h_content[:100]}...")
+            prompt += f"\n\n{i}. Гипотеза {h_id}: {h_content}"
 
         prompt += f"""
 
