@@ -131,6 +131,9 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
     if funnel_type == 'active':
         # Группируем по неделям и каналам
         result = ["📈 ИСТОРИЯ - АКТИВНАЯ ВОРОНКА", ""]
+        result.append("Канал       Подач Отв Скр Онс Офф Рдж  CVR1 CVR2 CVR3 CVR4")
+        result.append("=" * 50)
+        result.append("")
         
         # Сортируем по неделям (новые сверху)
         for week in sorted(df['week_start'].unique(), reverse=True):
@@ -197,6 +200,9 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
             
     else:  # passive
         result = ["📈 ИСТОРИЯ - ПАССИВНАЯ ВОРОНКА", ""]
+        result.append("Канал       Просм Вх Скр Онс Офф Рдж  CVR1 CVR2 CVR3 CVR4")
+        result.append("=" * 50)
+        result.append("")
         
         for week in sorted(df['week_start'].unique(), reverse=True):
             week_data = df[df['week_start'] == week]
