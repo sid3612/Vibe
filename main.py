@@ -241,8 +241,25 @@ async def send_cvr_recommendations(message, user_id: int, cvr_analysis: dict):
         hypotheses = problem.get('hypotheses', [])
         if hypotheses:
             problems_text += f"   💡 Релевантные направления: "
-            h_titles = [h.get('title', h.get('id', 'Unknown')) for h in hypotheses]
-            problems_text += ", ".join(h_titles) + "\n"
+            # Используем краткие названия вместо ID гипотез
+            h_names = []
+            for h in hypotheses:
+                if h.get('hid') == 'H1':
+                    h_names.append('Позиционирование профиля')
+                elif h.get('hid') == 'H2':
+                    h_names.append('Каналы поиска')
+                elif h.get('hid') == 'H3':
+                    h_names.append('Подготовка к скринингам')
+                elif h.get('hid') == 'H4':
+                    h_names.append('Навыки интервью')
+                elif h.get('hid') == 'H5':
+                    h_names.append('Переговоры об оффере')
+                else:
+                    h_names.append(h.get('title', h.get('id', 'Неизвестная гипотеза')))
+            
+            # Убираем дубликаты и выводим уникальные названия
+            unique_names = list(dict.fromkeys(h_names))
+            problems_text += ", ".join(unique_names) + "\n"
         problems_text += "\n"
     
     # Отправляем анализ проблем
