@@ -103,15 +103,9 @@ class CVRAutoAnalyzer:
         for cvr_name, cvr_value, denominator in cvr_checks:
             print(f"🔍 Проверка {cvr_name}: value={cvr_value}, denominator={denominator}")
             if self._is_problem_cvr(cvr_value, denominator):
-                # Получаем соответствующие гипотезы
+                # Получаем соответствующие гипотезы из Excel по hid
                 hypothesis_ids = self.cvr_hypothesis_mapping.get(cvr_name, [])
-                hypotheses = []
-
-                # Добавляем только гипотезы согласно строгим правилам
-                for h_id in hypothesis_ids:
-                    hypothesis = self.hypotheses_manager.get_hypothesis(h_id)
-                    if hypothesis:
-                        hypotheses.append(hypothesis)
+                hypotheses = self.hypotheses_manager.get_hypotheses_by_ids(hypothesis_ids)
 
                 print(f"📝 Для {cvr_name} найдено {len(hypotheses)} гипотез")
 

@@ -190,17 +190,17 @@ class HypothesesManager:
         # Сначала пытаемся найти в загруженных из Excel данных
         if self.hypotheses_data is not None:
             try:
-                # Предполагаем, что второй столбец (hid) содержит ID гипотез
-                matching_rows = self.hypotheses_data[self.hypotheses_data.iloc[:, 1].astype(str) == hypothesis_id]
+                # Ищем по столбцу hid (второй столбец)
+                matching_rows = self.hypotheses_data[self.hypotheses_data['hid'].astype(str) == hypothesis_id]
                 if not matching_rows.empty:
                     row = matching_rows.iloc[0]
                     return {
                         'id': hypothesis_id,
                         'title': f"Гипотеза {hypothesis_id}",
-                        'description': row.iloc[2] if len(row) > 2 else 'Без описания',
-                        'cvr_focus': 'Из базы гипотез',
+                        'description': row['name'] if 'name' in row else 'Без описания',
+                        'cvr_focus': f"Тема: {row['h_topic']}" if 'h_topic' in row else 'Из базы гипотез',
                         'question': 'Подходит ли эта гипотеза для вашей ситуации?',
-                        'actions': row.iloc[2] if len(row) > 2 else 'Нет действий',
+                        'actions': row['name'] if 'name' in row else 'Нет действий',
                         'effect': 'Улучшение конверсии'
                     }
             except Exception as e:
@@ -209,6 +209,50 @@ class HypothesesManager:
         # Если не найдено в Excel или Excel не загружен, используем встроенные
         return self.built_in_hypotheses.get(hypothesis_id)
     
+    def get_hypotheses_by_ids(self, hypothesis_ids: List[str]) -> List[Dict]:
+        """
+        Получить гипотезы по списку ID из Excel файла
+        
+        Args:
+            hypothesis_ids: Список ID гипотез (например, ['H1', 'H2'])
+            
+        Returns:
+            Список найденных гипотез
+        """
+        hypotheses = []
+        
+        if self.hypotheses_data is not None:
+            try:
+                for h_id in hypothesis_ids:
+                    # Ищем все гипотезы с данным hid
+                    matching_rows = self.hypotheses_data[self.hypotheses_data['hid'].astype(str) == h_id]
+                    for idx, row in matching_rows.iterrows():
+                        hypotheses.append({
+                            'id': h_id,
+                            'title': f"Гипотеза {h_id}",
+                            'description': row['name'] if 'name' in row else 'Без описания',
+                            'cvr_focus': f"Тема: {row['h_topic']}" if 'h_topic' in row else 'Из базы гипотез',
+                            'question': 'Подходит ли эта гипотеза для вашей ситуации?',
+                            'actions': row['name'] if 'name' in row else 'Нет действий',
+                            'effect': 'Улучшение конверсии'
+                        })
+                        
+                print(f"🔍 Найдено {len(hypotheses)} гипотез в Excel для {hypothesis_ids}")
+                return hypotheses
+                        
+            except Exception as e:
+                print(f"Ошибка при поиске гипотез в Excel: {e}")
+        
+        # Fallback к встроенным гипотезам
+        fallback_hypotheses = []
+        for h_id in hypothesis_ids:
+            hypothesis = self.built_in_hypotheses.get(h_id)
+            if hypothesis:
+                fallback_hypotheses.append(hypothesis)
+        
+        print(f"🔄 Используются встроенные гипотезы: {len(fallback_hypotheses)} из {len(hypothesis_ids)}")
+        return fallback_hypotheses
+
     def get_random_hypotheses(self, count: int = 5) -> List[Dict]:
         """
         Получить случайные гипотезы из Excel файла
