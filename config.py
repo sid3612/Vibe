@@ -19,3 +19,6 @@ REMINDER_TIMES = {
 
 # Часовой пояс для напоминаний
 TIMEZONE = "Europe/Moscow"
+
+# Фича-тогглы
+ENABLE_CSV_EXPORT = False  # Включить/выключить экспорт в CSV

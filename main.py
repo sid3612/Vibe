@@ -10,7 +10,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from config import BOT_TOKEN
+from config import BOT_TOKEN, ENABLE_CSV_EXPORT
 from db import init_db, add_user, get_user_funnels, set_active_funnel, get_user_channels, add_channel, remove_channel, add_week_data, get_week_data, update_week_field, get_user_history, set_user_reminders, save_profile, get_profile, delete_profile, record_payment_click, get_payment_statistics
 from metrics import calculate_cvr_metrics, format_metrics_table, format_history_table
 from export import generate_csv_export
@@ -302,19 +302,27 @@ async def show_main_menu(user_id: int, message_or_query):
 Выберите действие:
 """
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+    keyboard_buttons = [
         [InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu")],
         [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
         [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
         [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
         [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
         [InlineKeyboardButton(text="🎯 AI-анализ конверсии", callback_data="cvr_analysis")],
-        [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")],
-        [InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")],
+        [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")]
+    ]
+    
+    # Добавляем кнопку экспорта только если включен фича-тогл
+    if ENABLE_CSV_EXPORT:
+        keyboard_buttons.append([InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")])
+    
+    keyboard_buttons.extend([
         [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
         [InlineKeyboardButton(text="💳 Оплатить доступ", callback_data="payment_click")],
         [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
     ])
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
     # Check if it's a callback query that can be edited
     if hasattr(message_or_query, 'message') and hasattr(message_or_query, 'edit_text'):
@@ -429,6 +437,10 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
         await show_reflection_history(user_id, query.message)
         
     elif data == "export_csv":
+        if not ENABLE_CSV_EXPORT:
+            await query.answer("Функция экспорта временно недоступна")
+            return
+            
         csv_data = generate_csv_export(user_id)
         if csv_data:
             file = types.BufferedInputFile(csv_data.encode('utf-8'), filename=f"funnel_data_{user_id}.csv")
