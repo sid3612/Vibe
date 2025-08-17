@@ -303,24 +303,36 @@ async def show_main_menu(user_id: int, message_or_query):
 """
     
     keyboard_buttons = [
-        [InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu")],
-        [InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")],
-        [InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")],
-        [InlineKeyboardButton(text="➕ Добавить данные за неделю", callback_data="add_week_data")],
-        [InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")],
-        [InlineKeyboardButton(text="🎯 AI-анализ конверсии", callback_data="cvr_analysis")],
-        [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")]
+        # Первая строка: Профиль и смена воронки
+        [
+            InlineKeyboardButton(text="👤 Профиль кандидата", callback_data="profile_menu"),
+            InlineKeyboardButton(text="🔄 Сменить воронку", callback_data="change_funnel")
+        ],
+        # Вторая строка: Добавление данных и Изменение данных
+        [
+            InlineKeyboardButton(text="➕ Добавить данные", callback_data="add_week_data"),
+            InlineKeyboardButton(text="✏️ Изменить данные", callback_data="edit_data")
+        ],
+        # Третья строка: Настройки напоминаний и AI-анализ
+        [
+            InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders"),
+            InlineKeyboardButton(text="🎯 AI-анализ конверсии", callback_data="cvr_analysis")
+        ],
+        # Четвертая строка: История и Управление каналами
+        [
+            InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history"),
+            InlineKeyboardButton(text="📝 Управление каналами", callback_data="manage_channels")
+        ],
+        # Пятая строка: Оплата и FAQ
+        [
+            InlineKeyboardButton(text="💳 Оплатить доступ", callback_data="payment_click"),
+            InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")
+        ]
     ]
     
     # Добавляем кнопку экспорта только если включен фича-тогл
     if ENABLE_CSV_EXPORT:
         keyboard_buttons.append([InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")])
-    
-    keyboard_buttons.extend([
-        [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
-        [InlineKeyboardButton(text="💳 Оплатить доступ", callback_data="payment_click")],
-        [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
-    ])
     
     keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
     
