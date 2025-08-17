@@ -210,7 +210,7 @@ class CVRAutoAnalyzer:
             Dict с данными для ChatGPT
         """
         profile = get_profile(user_id)
-        reflection_history = get_reflection_history(user_id, 5)  # Последние 5 рефлексий
+        reflection_history = get_reflection_history(user_id, 14)  # Рефлексии за последние 2 недели
 
         # Собираем все уникальные гипотезы
         all_hypotheses = []
@@ -230,13 +230,21 @@ class CVRAutoAnalyzer:
             "user_profile": {
                 "role": profile.get('role', 'Не указано'),
                 "level": profile.get('level', 'Не указано'),
-                "location": profile.get('location', 'Не указано'),
+                "current_location": profile.get('current_location', 'Не указано'),
                 "target_location": profile.get('target_location', 'Не указано'),
                 "deadline_weeks": profile.get('deadline_weeks', 'Не указано'),
                 "funnel_type": profile.get('preferred_funnel_type', 'active'),
-                "salary_expectations": profile.get('salary_expectations'),
-                "industries": profile.get('industries'),
-                "competencies": profile.get('competencies')
+                "role_synonyms": profile.get('role_synonyms_json'),
+                "salary_min": profile.get('salary_min'),
+                "salary_max": profile.get('salary_max'),
+                "salary_currency": profile.get('salary_currency'),
+                "salary_period": profile.get('salary_period'),
+                "company_types": profile.get('company_types_json'),
+                "industries": profile.get('industries_json'),
+                "competencies": profile.get('competencies_json'),
+                "superpowers": profile.get('superpowers_json'),
+                "constraints": profile.get('constraints_text'),
+                "linkedin": profile.get('linkedin_url')
             },
             "reflection_history": reflection_history,
             "funnel_snapshot": funnel_snapshot,
@@ -292,16 +300,62 @@ class CVRAutoAnalyzer:
         hypotheses = chatgpt_data["hypotheses"]
         funnel_snapshot = chatgpt_data["funnel_snapshot"]
 
-        prompt = f"""Привет! Ты HackOFFer AI-ментор по поиску работы. Проанализируй воронку кандидата и дай 10 персональных рекомендаций.
+        prompt = f"""Привет! Ты HackOFFer AI-ментор по поиску работы. Проанализируй воронку кандидата, его LinkedIn страницу и дай 10 персональных рекомендаций.
 
 ПРОФИЛЬ КАНДИДАТА:
 • Роль: {profile['role']}
 • Уровень: {profile['level']}
-• Локация: {profile['location']} → {profile['target_location']}
+• Текущая локация: {profile['current_location']}
+• Локация поиска: {profile['target_location']}
 • Срок поиска: {profile['deadline_weeks']} недель
 • Тип воронки: {"Активный поиск (подает заявки)" if profile['funnel_type'] == 'active' else "Пассивный поиск (находят его)"}
 
-ПРОБЛЕМНЫЕ ОБЛАСТИ (CVR < 20% при знаменателе ≥5):"""
+        # Добавляем дополнительную информацию профиля
+        if profile.get('role_synonyms'):
+            import json
+            synonyms = json.loads(profile['role_synonyms']) if isinstance(profile['role_synonyms'], str) else profile['role_synonyms']
+            if synonyms:
+                prompt += f"\n• Синонимы ролей: {', '.join(synonyms)}"
+
+        if profile.get('salary_min') and profile.get('salary_max'):
+            currency = profile.get('salary_currency', 'EUR')
+            period = profile.get('salary_period', 'год')
+            if profile['salary_min'] == profile['salary_max']:
+                prompt += f"\n• Зарплата: {profile['salary_min']:.0f} {currency}/{period}"
+            else:
+                prompt += f"\n• Диапазон ЗП: {profile['salary_min']:.0f}-{profile['salary_max']:.0f} {currency}/{period}"
+
+        if profile.get('company_types'):
+            import json
+            types = json.loads(profile['company_types']) if isinstance(profile['company_types'], str) else profile['company_types']
+            if types:
+                prompt += f"\n• Типы компаний: {', '.join(types)}"
+
+        if profile.get('industries'):
+            import json
+            industries = json.loads(profile['industries']) if isinstance(profile['industries'], str) else profile['industries']
+            if industries:
+                prompt += f"\n• Индустрии: {', '.join(industries)}"
+
+        if profile.get('competencies'):
+            import json
+            competencies = json.loads(profile['competencies']) if isinstance(profile['competencies'], str) else profile['competencies']
+            if competencies:
+                prompt += f"\n• Ключевые компетенции: {', '.join(competencies)}"
+
+        if profile.get('superpowers'):
+            import json
+            superpowers = json.loads(profile['superpowers']) if isinstance(profile['superpowers'], str) else profile['superpowers']
+            if superpowers:
+                prompt += f"\n• Карта суперсил: {', '.join(superpowers[:3])}{'...' if len(superpowers) > 3 else ''}"
+
+        if profile.get('constraints'):
+            prompt += f"\n• Доп. ограничения: {profile['constraints'][:100]}{'...' if len(profile['constraints']) > 100 else ''}"
+
+        if profile.get('linkedin'):
+            prompt += f"\n• LinkedIn: {profile['linkedin']}"
+
+        prompt += f"\n\nПРОБЛЕМНЫЕ ОБЛАСТИ (CVR < 20% при знаменателе ≥5):"
 
         for problem in problems:
             prompt += f"\n• {problem['cvr_name']}: {problem['cvr_value']:.1f}% (знаменатель: {problem['denominator']})"
