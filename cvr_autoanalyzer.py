@@ -206,16 +206,12 @@ class CVRAutoAnalyzer:
         profile = get_profile(user_id)
         reflection_history = get_reflection_history(user_id, 14)  # Рефлексии за последние 2 недели
 
-        # Собираем все уникальные гипотезы
+        # Собираем ВСЕ гипотезы без дедупликации по ID
         all_hypotheses = []
-        hypothesis_ids = set()
 
         for problem in problems:
             for hypothesis in problem.get('hypotheses', []):
-                h_id = hypothesis.get('id')
-                if h_id and h_id not in hypothesis_ids:
-                    hypothesis_ids.add(h_id)
-                    all_hypotheses.append(hypothesis)
+                all_hypotheses.append(hypothesis)
 
         # Формируем срез воронки
         funnel_snapshot = self._create_funnel_snapshot(problems)
