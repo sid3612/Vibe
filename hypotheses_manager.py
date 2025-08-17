@@ -228,6 +228,7 @@ class HypothesesManager:
                     matching_rows = self.hypotheses_data[self.hypotheses_data['hid'].astype(str) == h_id]
                     for idx, row in matching_rows.iterrows():
                         hypothesis_text = row['name'] if 'name' in row else 'Без описания'
+                        print(f"📋 Загружена гипотеза {h_id}: {hypothesis_text[:150]}...")
                         hypotheses.append({
                             'id': h_id,
                             'title': f"Гипотеза {h_id}",
