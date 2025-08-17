@@ -314,13 +314,12 @@ class CVRAutoAnalyzer:
         for problem in problems:
             prompt += f"\n• {problem['cvr_name']}: {problem['cvr_value']:.1f}% (знаменатель: {problem['denominator']})"
 
-        prompt += f"\n\nДОСТУПНЫЕ ГИПОТЕЗЫ ДЛЯ РЕШЕНИЯ (ТОП-50):"
+        prompt += f"\n\nДОСТУПНЫЕ ГИПОТЕЗЫ ДЛЯ РЕШЕНИЯ:"
 
-        # Ограничиваем до 50 гипотез для промпта
-        limited_hypotheses = hypotheses[:50]
-        print(f"🔍 Отправляем в промпт {len(limited_hypotheses)} гипотез из {len(hypotheses)} найденных")
+        # Отправляем все найденные гипотезы без ограничений
+        print(f"🔍 Отправляем в промпт {len(hypotheses)} гипотез")
 
-        for i, hypothesis in enumerate(limited_hypotheses, 1):
+        for i, hypothesis in enumerate(hypotheses, 1):
             # Получаем данные из Excel структуры
             h_id = hypothesis.get('id', f'H{i}')
             # Используем полное содержимое гипотезы из столбца 'name'
