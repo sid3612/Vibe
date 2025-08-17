@@ -192,6 +192,12 @@ class CVRAutoAnalyzer:
 
         return totals
 
+    def _check_profile_completeness(self, profile: Dict) -> bool:
+        """Проверяет, достаточно ли заполнено полей профиля для запуска анализа AI"""
+        required_fields = ['role', 'level', 'current_location']
+        filled_count = sum(1 for field in required_fields if profile.get(field))
+        return filled_count >= 3
+
     def prepare_chatgpt_data(self, user_id: int, problems: List[Dict]) -> Dict[str, any]:
         """
         Подготавливает пакет данных для отправки в ChatGPT
@@ -325,11 +331,11 @@ class CVRAutoAnalyzer:
             # Получаем полное содержимое гипотезы из столбца 'name' Excel файла
             h_content = hypothesis.get('name', hypothesis.get('description', hypothesis.get('actions', 'Нет описания')))
             h_id = hypothesis.get('hid', f'H{i}')
-            
+
             # Ограничиваем длину каждой гипотезы до 400 символов для читаемости
             if len(h_content) > 400:
                 h_content = h_content[:400] + "..."
-            
+
             # Отправляем содержимое гипотезы с номером и ID
             print(f"🔍 Гипотеза {h_id}: {h_content[:100]}...")
             prompt += f"\n\n{i}. Гипотеза {h_id}: {h_content}"
@@ -412,6 +418,15 @@ async def analyze_and_recommend_async(user_id: int, use_api: bool = True) -> Opt
     # Шаг 1: Детект проблем CVR
     analysis_result = analyzer.detect_cvr_problems(user_id)
 
+    # Проверяем, нужно ли запускать AI анализ на основе заполненности профиля
+    profile = get_profile(user_id)
+    if not analyzer._check_profile_completeness(profile):
+        return {
+            "status": "profile_incomplete",
+            "message": "Недостаточно данных в профиле для запуска AI анализа. Требуется минимум 3 поля: Роль, Уровень, Текущая локация.",
+            "recommendations": None
+        }
+
     if not analysis_result["problems"]:
         return {
             "status": "no_problems",
@@ -467,10 +482,31 @@ if __name__ == "__main__":
     analyzer = CVRAutoAnalyzer()
     print("✅ CVR Auto-Analyzer инициализирован")
 
-    # Тестируем детекцию проблем
-    test_problems = analyzer._is_problem_cvr(8.5, 10)  # Должно быть True
-    test_no_problems = analyzer._is_problem_cvr(15.0, 10)  # Должно быть False
-    test_low_denominator = analyzer._is_problem_cvr(5.0, 3)  # Должно быть False
+    # 1. Тестируем проверку заполненности профиля
+    test_profile_empty = analyzer._check_profile_completeness({})
+    test_profile_minimal = analyzer._check_profile_completeness({
+        'role': 'Developer', 'level': 'Senior', 'current_location': 'Moscow'
+    })
+    test_profile_full = analyzer._check_profile_completeness({
+        'role': 'Developer', 'level': 'Senior', 'current_location': 'Moscow',
+        'target_location': 'Berlin', 'deadline_weeks': 12
+    })
 
-    print(f"✅ Детекция проблем: {test_problems}, {not test_no_problems}, {not test_low_denominator}")
-    print("🎉 CVR Auto-Analyzer готов к работе!")
+    print(f"  • Проверка профиля: пустой={not test_profile_empty}, минимальный={test_profile_minimal}, полный={test_profile_full}")
+
+    # 2. Тестируем детекцию проблем (без ограничений по CVR, только по знаменателю)
+    print("\n🧪 Симуляция анализа с проблемным CVR:")
+    # CVR < 20% (8.5) при знаменателе >= 5 (10) - должно быть проблемой
+    test_problem = analyzer._is_problem_cvr(8.5, 10)
+    # CVR >= 20% (25.0) при знаменателе >= 5 (10) - не должно быть проблемой
+    test_no_problem_high_cvr = analyzer._is_problem_cvr(25.0, 10)
+    # CVR < 20% (5.0) при знаменателе < 5 (3) - не должно быть проблемой
+    test_no_problem_low_denominator = analyzer._is_problem_cvr(5.0, 3)
+
+    print(f"  • Детекция проблем (CVR=8.5%, denom=10): {test_problem}")
+    print(f"  • Детекция проблем (CVR=25.0%, denom=10): {test_no_problem_high_cvr}")
+    print(f"  • Детекция проблем (CVR=5.0%, denom=3): {test_no_problem_low_denominator}")
+    print(f"  • Общая проверка детекции: {test_problem and not test_no_problem_high_cvr and not test_no_problem_low_denominator}")
+
+
+    print("\n🎉 CVR Auto-Analyzer готов к работе!")
