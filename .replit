@@ -28,3 +28,6 @@ args = "pip install aiogram apscheduler pandas pytz && python main.py"
 
 [workflows.workflow.metadata]
 outputType = "console"
+
+[deployment]
+run = ["sh", "-c", "pip install aiogram apscheduler pandas pytz && python main.py"]
