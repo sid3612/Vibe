@@ -11,7 +11,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN, ENABLE_CSV_EXPORT
-from db import init_db, add_user, get_user_funnels, set_active_funnel, get_user_channels, add_channel, remove_channel, add_week_data, get_week_data, update_week_field, get_user_history, set_user_reminders, save_profile, get_profile, delete_profile, record_payment_click, get_payment_statistics
+from db import init_db, add_user, get_user_funnels, set_active_funnel, get_user_channels, add_channel, remove_channel, add_week_data, get_week_data, update_week_field, get_user_history, set_user_reminders, save_profile, get_profile, delete_profile, record_payment_click, get_payment_statistics, check_cvr_analysis_access, mark_cvr_analysis_used, grant_cvr_paid_access
 from metrics import calculate_cvr_metrics, format_metrics_table, format_history_table
 from export import generate_csv_export
 from faq import get_faq_text
@@ -173,12 +173,40 @@ async def handle_cvr_analysis_button(query: CallbackQuery, user_id: int):
     """
     Обработчик кнопки "Анализ CVR" - запуск анализа по запросу пользователя
     """
+    # Проверяем доступ к CVR анализу
+    access_info = check_cvr_analysis_access(user_id)
+    
+    if not access_info['can_use']:
+        # Доступ ограничен - показываем сообщение о необходимости оплаты
+        await query.message.edit_text(
+            "🔒 **Ограничение доступа к AI-анализу**\n\n"
+            "Вы уже использовали бесплатный AI-анализ конверсии.\n\n"
+            "Для продолжения использования всех функций HackOFFer необходимо оформить доступ.\n\n"
+            "💡 После оплаты вам будут доступны:\n"
+            "• Неограниченный AI-анализ конверсии\n"
+            "• Персональные рекомендации от ChatGPT\n"
+            "• Расширенная аналитика воронки\n"
+            "• Приоритетная поддержка",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💳 Оплатить доступ", callback_data="payment_click")],
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
+            ])
+        )
+        await query.answer("Необходима оплата для повторного использования")
+        return
+    
     await query.answer("Анализирую ваши данные...")
     
     # Запускаем анализ CVR
     cvr_analysis = await analyze_and_recommend_async(user_id, use_api=True)
     
     if cvr_analysis.get("status") == "problems_found":
+        # Отмечаем использование бесплатного анализа, если это первый раз
+        access_info = check_cvr_analysis_access(user_id)
+        if access_info['is_first_time'] or (not access_info['can_use'] == False):
+            mark_cvr_analysis_used(user_id)
+        
         await send_cvr_recommendations(query.message, user_id, cvr_analysis)
     elif cvr_analysis.get("status") == "no_problems":
         await query.message.edit_text(
@@ -409,22 +437,31 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
         # Записываем клик в статистику
         record_payment_click(user_id)
         
+        # Снимаем ограничения на CVR анализ (эмуляция оплаты)
+        grant_cvr_paid_access(user_id)
+        
         # Получаем статистику для отображения
         stats = get_payment_statistics()
         
         # Показываем сообщение о бета-версии
         await query.message.edit_text(
-            "🎉 Временная бесплатная бета-версия\n\n"
+            "🎉 Доступ активирован!\n\n"
             "HackOFFer пока работает в режиме бесплатного тестирования! "
-            "Все функции доступны без ограничений.\n\n"
+            "Все функции теперь доступны без ограничений.\n\n"
+            "✅ **Активированы возможности:**\n"
+            "• Неограниченный AI-анализ конверсии\n"
+            "• Персональные рекомендации от ChatGPT\n"
+            "• Расширенная аналитика воронки\n\n"
             "🚀 Мы собираем обратную связь от пользователей для улучшения продукта.\n\n"
             "💡 Если у вас есть предложения или вопросы — пишите через @slava_sid\n\n"
             f"📊 Интерес к продукту: {stats['unique_users']} пользователей",
+            parse_mode="Markdown",
             reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🎯 Попробовать AI-анализ", callback_data="cvr_analysis")],
                 [InlineKeyboardButton(text="🏠 На главную", callback_data="start_page")]
             ])
         )
-        await query.answer("Спасибо за интерес к продукту!")
+        await query.answer("Доступ активирован! Все ограничения сняты.")
         
     elif data == "change_funnel":
         keyboard = InlineKeyboardMarkup(inline_keyboard=[

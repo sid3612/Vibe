@@ -160,6 +160,15 @@ def init_db():
         last_click_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )''')
 
+    # Создание таблицы для отслеживания использования CVR анализа
+    cursor.execute('''CREATE TABLE IF NOT EXISTS cvr_analysis_usage (
+        user_id INTEGER PRIMARY KEY,
+        used_free_analysis BOOLEAN DEFAULT FALSE,
+        has_paid_access BOOLEAN DEFAULT FALSE,
+        first_analysis_at TIMESTAMP,
+        paid_at TIMESTAMP
+    )''')
+
     conn.commit()
     conn.close()
 
@@ -655,6 +664,59 @@ def get_payment_statistics():
         'unique_users': unique_users,
         'total_clicks': total_clicks
     }
+
+def check_cvr_analysis_access(user_id: int) -> dict:
+    """Проверить доступ пользователя к CVR анализу"""
+    conn = get_db_connection()
+    c = conn.cursor()
+    
+    c.execute('SELECT used_free_analysis, has_paid_access FROM cvr_analysis_usage WHERE user_id = ?', (user_id,))
+    result = c.fetchone()
+    
+    conn.close()
+    
+    if not result:
+        # Первое использование - разрешено
+        return {'can_use': True, 'is_first_time': True}
+    
+    used_free, has_paid = result
+    
+    if has_paid:
+        # Есть платный доступ - разрешено
+        return {'can_use': True, 'is_first_time': False}
+    elif used_free:
+        # Уже использовал бесплатный анализ - нужна оплата
+        return {'can_use': False, 'is_first_time': False}
+    else:
+        # Ещё не использовал - разрешено
+        return {'can_use': True, 'is_first_time': False}
+
+def mark_cvr_analysis_used(user_id: int):
+    """Отметить, что пользователь использовал бесплатный CVR анализ"""
+    conn = get_db_connection()
+    c = conn.cursor()
+    
+    c.execute('''INSERT OR REPLACE INTO cvr_analysis_usage 
+                 (user_id, used_free_analysis, first_analysis_at) 
+                 VALUES (?, TRUE, CURRENT_TIMESTAMP)''', (user_id,))
+    
+    conn.commit()
+    conn.close()
+
+def grant_cvr_paid_access(user_id: int):
+    """Предоставить платный доступ к CVR анализу"""
+    conn = get_db_connection()
+    c = conn.cursor()
+    
+    c.execute('''INSERT OR REPLACE INTO cvr_analysis_usage 
+                 (user_id, used_free_analysis, has_paid_access, paid_at) 
+                 VALUES (?, 
+                         COALESCE((SELECT used_free_analysis FROM cvr_analysis_usage WHERE user_id = ?), FALSE),
+                         TRUE, 
+                         CURRENT_TIMESTAMP)''', (user_id, user_id))
+    
+    conn.commit()
+    conn.close()
 
 def get_week_data(user_id: int, week_start: str, channel: str, funnel_type: str) -> dict:
     """Получить данные за неделю"""
