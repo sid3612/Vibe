@@ -327,6 +327,10 @@ async def show_main_menu(user_id: int, message_or_query):
         [
             InlineKeyboardButton(text="💳 Оплатить доступ", callback_data="payment_click"),
             InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")
+        ],
+        # Шестая строка: На главную
+        [
+            InlineKeyboardButton(text="🏠 На главную", callback_data="start_page")
         ]
     ]
     
