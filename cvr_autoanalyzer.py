@@ -34,15 +34,15 @@ class CVRAutoAnalyzer:
         
         # Правила выбора гипотез по CVR (согласно требованиям)
         self.cvr_hypothesis_mapping = {
-            'CVR1': ['H1'],        # CVR1 < 10% = H1
-            'CVR2': ['H1', 'H2'],  # CVR2 < 10% = H1, H2
-            'CVR3': ['H3', 'H4'],  # CVR3 < 10% = H3, H4
-            'CVR4': ['H5'],        # CVR4 < 10% = H5
+            'CVR1': ['H1'],        # CVR1 < 20% = H1
+            'CVR2': ['H1', 'H2'],  # CVR2 < 20% = H1, H2
+            'CVR3': ['H3', 'H4'],  # CVR3 < 20% = H3, H4
+            'CVR4': ['H5'],        # CVR4 < 20% = H5
         }
     
     def detect_cvr_problems(self, user_id: int) -> Dict[str, any]:
         """
-        Автодетект проблем CVR (CVR<10% при знаменателе ≥5)
+        Автодетект проблем CVR (CVR<20% при знаменателе ≥5)
         
         Returns:
             Dict с найденными проблемами и соответствующими гипотезами
@@ -150,10 +150,10 @@ class CVRAutoAnalyzer:
         return cvr_values
     
     def _is_problem_cvr(self, cvr_value: Optional[float], denominator: int) -> bool:
-        """Проверяет, является ли CVR проблемным (CVR<10% при знаменателе ≥5)"""
+        """Проверяет, является ли CVR проблемным (CVR<20% при знаменателе ≥5)"""
         if cvr_value is None or denominator < 5:
             return False
-        return cvr_value < 10.0
+        return cvr_value < 20.0
     
     def _get_latest_funnel_data(self, history: List[Dict], profile: Dict) -> Optional[Dict]:
         """Получает последние данные воронки для анализа"""
@@ -301,7 +301,7 @@ class CVRAutoAnalyzer:
 • Срок поиска: {profile['deadline_weeks']} недель
 • Тип воронки: {"Активный поиск (подает заявки)" if profile['funnel_type'] == 'active' else "Пассивный поиск (находят его)"}
 
-ПРОБЛЕМНЫЕ ОБЛАСТИ (CVR < 10% при знаменателе ≥5):"""
+ПРОБЛЕМНЫЕ ОБЛАСТИ (CVR < 20% при знаменателе ≥5):"""
         
         for problem in problems:
             prompt += f"\n• {problem['cvr_name']}: {problem['cvr_value']:.1f}% (знаменатель: {problem['denominator']})"
