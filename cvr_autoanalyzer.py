@@ -347,6 +347,71 @@ class CVRAutoAnalyzer:
 
         return prompt
 
+    def generate_recommendations_prompt(self, chatgpt_data: Dict[str, any]) -> str:
+        """
+        Генерирует промпт для ChatGPT на основе данных анализа
+
+        Args:
+            chatgpt_data: Подготовленные данные для анализа
+
+        Returns:
+            Строка с промптом для ChatGPT
+        """
+        profile = chatgpt_data["user_profile"]
+        problems = chatgpt_data["problems"]
+        hypotheses = chatgpt_data["hypotheses"]
+        funnel_snapshot = chatgpt_data["funnel_snapshot"]
+
+        prompt = f"""Привет! Ты HackOFFer AI-ментор по поиску работы. Проанализируй воронку кандидата, его LinkedIn страницу и дай 10 персональных рекомендаций.
+
+ПРОФИЛЬ КАНДИДАТА:
+• Роль: {profile['role']}
+• Текущая локация: {profile['current_location']}
+• Локация поиска: {profile['target_location']}
+• Уровень: {profile['level']}
+• Срок поиска: {profile['deadline_weeks']} недель
+• Синонимы ролей: {', '.join(profile.get('role_synonyms', [])[:4]) if profile.get('role_synonyms') else 'Не указано'}
+• Диапазон ЗП: {profile['salary_range']}
+• Типы компаний: {', '.join(profile.get('company_types', [])) if profile.get('company_types') else 'Не указано'}
+• Индустрии: {', '.join(profile.get('industries', [])) if profile.get('industries') else 'Не указано'}
+• Ключевые компетенции: {', '.join(profile.get('key_competencies', [])) if profile.get('key_competencies') else 'Не указано'}
+• Карта суперсил: {str(profile.get('superpowers_map', {})) if profile.get('superpowers_map') else 'Не указано'}
+• Доп. ограничения: {profile.get('additional_constraints', 'Нет')}
+• LinkedIn: {profile.get('linkedin_profile', 'Не указан')}
+• Тип воронки: {"Активный поиск (подает заявки)" if profile['funnel_type'] == 'active' else "Пассивный поиск (находят его)"}
+
+ПРОБЛЕМНЫЕ ОБЛАСТИ (CVR < 20% при знаменателе ≥5):"""
+
+        for problem in problems:
+            prompt += f"\n• {problem['cvr_name']}: {problem['cvr_value']:.1f}% (знаменатель: {problem['denominator']})"
+
+        prompt += f"\n\nДОСТУПНЫЕ ГИПОТЕЗЫ ДЛЯ РЕШЕНИЯ:"
+
+        for hypothesis in hypotheses:
+            prompt += f"\n\n{hypothesis['id']} — {hypothesis['title']}"
+            prompt += f"\n👉 {hypothesis['cvr_focus']}"
+            prompt += f"\nВопрос: {hypothesis['question']}"
+            prompt += f"\nДействия: {hypothesis['actions']}"
+            prompt += f"\nЭффект: {hypothesis['effect']}"
+
+        prompt += f"""
+
+ЗАДАЧА:
+1. Проанализируй проблемные CVR кандидата
+2. Выбери наиболее релевантные гипотезы для его ситуации  
+3. Сгенерируй 10 персональных рекомендаций с учетом его профиля
+
+ФОРМАТ ОТВЕТА:
+Каждая рекомендация должна быть:
+• Конкретной и выполнимой
+• Привязанной к его роли ({profile['role']}) и уровню ({profile['level']})
+• Нацеленной на улучшение конкретного CVR
+• С примером или шаблоном где возможно
+
+Начинай каждую рекомендацию с номера (1-10) и эмодзи."""
+
+        return prompt
+
     async def get_chatgpt_recommendations(self, chatgpt_data: Dict[str, any]) -> Optional[str]:
         """
         Получает рекомендации от ChatGPT через API
