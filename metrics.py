@@ -56,7 +56,7 @@ def calculate_percentage(numerator: int, denominator: int) -> str:
     return f"{round(percentage)}%"
 
 def format_metrics_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
-    """Форматировать таблицу метрик для Telegram"""
+    """Форматировать таблицу метрик для Telegram (мобильный формат)"""
     if not data:
         return "Нет данных для отображения"
     
@@ -71,49 +71,57 @@ def format_metrics_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
     result = []
     
     if funnel_type == 'active':
-        header = "📊 АКТИВНАЯ ВОРОНКА\n\n"
+        header = "📊 АКТИВНАЯ ВОРОНКА\n"
         result.append(header)
         
         for week in sorted(weeks_data.keys(), reverse=True):
             week_data = weeks_data[week]
-            result.append(f"Неделя: {week}\n")
-            result.append("-" * 50)
-            result.append("Канал        Подачи Ответы Скрин. Онс. Офф. CVR1 CVR2 CVR3 CVR4")
-            result.append("-" * 70)
+            result.append(f"📅 Неделя: {week}")
+            result.append("-" * 35)
             
             for row in week_data:
                 metrics = calculate_cvr_metrics(row, funnel_type)
-                channel = row['channel_name'][:10].ljust(10)
+                channel = row['channel_name'][:12]
                 
-                line = f"{channel} {row['applications']:6} {row['responses']:6} {row['screenings']:6} {row['onsites']:4} {row['offers']:4} {metrics['cvr1']:4} {metrics['cvr2']:4} {metrics['cvr3']:4} {metrics['cvr4']:4}"
-                result.append(line)
+                # Первая строка: канал и числовые данные
+                data_line = f"{channel:<12} {row['applications']:2} {row['responses']:2} {row['screenings']:2} {row['onsites']:2} {row['offers']:2} {row['rejections']:2}"
+                result.append(data_line)
+                
+                # Вторая строка: CVR метрики
+                cvr_line = f"{'CVR:':<12} {metrics['cvr1']:>4} {metrics['cvr2']:>4} {metrics['cvr3']:>4} {metrics['cvr4']:>4} — —"
+                result.append(cvr_line)
+                result.append("")
             
             result.append("")
     
     else:  # passive
-        header = "📊 ПАССИВНАЯ ВОРОНКА\n\n"
+        header = "📊 ПАССИВНАЯ ВОРОНКА\n"
         result.append(header)
         
         for week in sorted(weeks_data.keys(), reverse=True):
             week_data = weeks_data[week]
-            result.append(f"Неделя: {week}\n")
-            result.append("-" * 50)
-            result.append("Канал        Просм. Вход. Скрин. Онс. Офф. CVR1 CVR2 CVR3 CVR4")
-            result.append("-" * 70)
+            result.append(f"📅 Неделя: {week}")
+            result.append("-" * 35)
             
             for row in week_data:
                 metrics = calculate_cvr_metrics(row, funnel_type)
-                channel = row['channel_name'][:10].ljust(10)
+                channel = row['channel_name'][:12]
                 
-                line = f"{channel} {row['views']:6} {row['incoming']:6} {row['screenings']:6} {row['onsites']:4} {row['offers']:4} {metrics['cvr1']:4} {metrics['cvr2']:4} {metrics['cvr3']:4} {metrics['cvr4']:4}"
-                result.append(line)
+                # Первая строка: канал и числовые данные
+                data_line = f"{channel:<12} {row['views']:2} {row['incoming']:2} {row['screenings']:2} {row['onsites']:2} {row['offers']:2} {row['rejections']:2}"
+                result.append(data_line)
+                
+                # Вторая строка: CVR метрики
+                cvr_line = f"{'CVR:':<12} {metrics['cvr1']:>4} {metrics['cvr2']:>4} {metrics['cvr3']:>4} {metrics['cvr4']:>4} — —"
+                result.append(cvr_line)
+                result.append("")
             
             result.append("")
     
     return "\n".join(result)
 
 def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
-    """Форматировать историческую таблицу для отображения"""
+    """Форматировать историческую таблицу для отображения (мобильный формат)"""
     if not data:
         return "Нет данных для отображения"
     
@@ -129,9 +137,7 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
             week_data = df[df['week_start'] == week]
             
             result.append(f"📅 Неделя: {week}")
-            result.append("-" * 75)
-            result.append("Канал       Подач Отв Скр Онс Офф Рдж  CVR1 CVR2 CVR3 CVR4")
-            result.append("-" * 75)
+            result.append("-" * 35)
             
             total_apps = 0
             total_responses = 0
@@ -142,7 +148,7 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
             
             for _, row in week_data.iterrows():
                 metrics = calculate_cvr_metrics(dict(row), funnel_type)
-                channel = str(row['channel_name'])[:10].ljust(10)
+                channel = str(row['channel_name'])[:12]
                 
                 apps = row['applications']
                 resp = row['responses']
@@ -158,8 +164,14 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
                 total_offers += off
                 total_rejections += rej
                 
-                line = f"{channel} {apps:5} {resp:3} {scr:3} {ons:3} {off:3} {rej:3}  {metrics['cvr1']:<4} {metrics['cvr2']:<4} {metrics['cvr3']:<4} {metrics['cvr4']:<5}"
-                result.append(line)
+                # Первая строка: канал и числовые данные
+                data_line = f"{channel:<12} {apps:2} {resp:2} {scr:2} {ons:2} {off:2} {rej:2}"
+                result.append(data_line)
+                
+                # Вторая строка: CVR метрики
+                cvr_line = f"{'CVR:':<12} {metrics['cvr1']:>4} {metrics['cvr2']:>4} {metrics['cvr3']:>4} {metrics['cvr4']:>4} — —"
+                result.append(cvr_line)
+                result.append("")
             
             # Добавляем итоги по неделе
             if len(week_data) > 1:
@@ -172,9 +184,14 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
                     'rejections': total_rejections
                 }, funnel_type)
                 
-                result.append("-" * 75)
-                total_line = f"{'ИТОГО':<10} {total_apps:5} {total_responses:3} {total_screenings:3} {total_onsites:3} {total_offers:3} {total_rejections:3}  {total_metrics['cvr1']:<4} {total_metrics['cvr2']:<4} {total_metrics['cvr3']:<4} {total_metrics['cvr4']:<5}"
-                result.append(total_line)
+                result.append("-" * 35)
+                # Итоговые данные
+                total_data_line = f"{'ИТОГО':<12} {total_apps:2} {total_responses:2} {total_screenings:2} {total_onsites:2} {total_offers:2} {total_rejections:2}"
+                result.append(total_data_line)
+                
+                # Итоговые CVR
+                total_cvr_line = f"{'CVR:':<12} {total_metrics['cvr1']:>4} {total_metrics['cvr2']:>4} {total_metrics['cvr3']:>4} {total_metrics['cvr4']:>4} — —"
+                result.append(total_cvr_line)
             
             result.append("")
             
@@ -185,9 +202,7 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
             week_data = df[df['week_start'] == week]
             
             result.append(f"📅 Неделя: {week}")
-            result.append("-" * 75)
-            result.append("Канал       Просм Вх Скр Онс Офф Рдж  CVR1 CVR2 CVR3 CVR4")
-            result.append("-" * 75)
+            result.append("-" * 35)
             
             total_views = 0
             total_incoming = 0
@@ -198,7 +213,7 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
             
             for _, row in week_data.iterrows():
                 metrics = calculate_cvr_metrics(dict(row), funnel_type)
-                channel = str(row['channel_name'])[:10].ljust(10)
+                channel = str(row['channel_name'])[:12]
                 
                 views = row['views']
                 inc = row['incoming']
@@ -214,8 +229,14 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
                 total_offers += off
                 total_rejections += rej
                 
-                line = f"{channel} {views:5} {inc:2} {scr:3} {ons:3} {off:3} {rej:3}  {metrics['cvr1']:<4} {metrics['cvr2']:<4} {metrics['cvr3']:<4} {metrics['cvr4']:<5}"
-                result.append(line)
+                # Первая строка: канал и числовые данные
+                data_line = f"{channel:<12} {views:2} {inc:2} {scr:2} {ons:2} {off:2} {rej:2}"
+                result.append(data_line)
+                
+                # Вторая строка: CVR метрики
+                cvr_line = f"{'CVR:':<12} {metrics['cvr1']:>4} {metrics['cvr2']:>4} {metrics['cvr3']:>4} {metrics['cvr4']:>4} — —"
+                result.append(cvr_line)
+                result.append("")
             
             # Добавляем итоги по неделе
             if len(week_data) > 1:
@@ -228,9 +249,14 @@ def format_history_table(data: List[Dict[str, Any]], funnel_type: str) -> str:
                     'rejections': total_rejections
                 }, funnel_type)
                 
-                result.append("-" * 75)
-                total_line = f"{'ИТОГО':<10} {total_views:5} {total_incoming:2} {total_screenings:3} {total_onsites:3} {total_offers:3} {total_rejections:3}  {total_metrics['cvr1']:<4} {total_metrics['cvr2']:<4} {total_metrics['cvr3']:<4} {total_metrics['cvr4']:<5}"
-                result.append(total_line)
+                result.append("-" * 35)
+                # Итоговые данные
+                total_data_line = f"{'ИТОГО':<12} {total_views:2} {total_incoming:2} {total_screenings:2} {total_onsites:2} {total_offers:2} {total_rejections:2}"
+                result.append(total_data_line)
+                
+                # Итоговые CVR
+                total_cvr_line = f"{'CVR:':<12} {total_metrics['cvr1']:>4} {total_metrics['cvr2']:>4} {total_metrics['cvr3']:>4} {total_metrics['cvr4']:>4} — —"
+                result.append(total_cvr_line)
             
             result.append("")
     
