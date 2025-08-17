@@ -210,7 +210,7 @@ class CVRAutoAnalyzer:
             Dict с данными для ChatGPT
         """
         profile = get_profile(user_id)
-        reflection_history = get_reflection_history(user_id, 5)  # Последние 5 рефлексий
+        reflection_history = get_reflection_history(user_id, 14)  # Рефлексии за последние 2 недели
 
         # Собираем все уникальные гипотезы
         all_hypotheses = []
@@ -229,14 +229,19 @@ class CVRAutoAnalyzer:
         chatgpt_data = {
             "user_profile": {
                 "role": profile.get('role', 'Не указано'),
-                "level": profile.get('level', 'Не указано'),
-                "location": profile.get('location', 'Не указано'),
+                "current_location": profile.get('location', 'Не указано'),
                 "target_location": profile.get('target_location', 'Не указано'),
+                "level": profile.get('level', 'Не указано'),
                 "deadline_weeks": profile.get('deadline_weeks', 'Не указано'),
-                "funnel_type": profile.get('preferred_funnel_type', 'active'),
-                "salary_expectations": profile.get('salary_expectations'),
-                "industries": profile.get('industries'),
-                "competencies": profile.get('competencies')
+                "role_synonyms": profile.get('role_synonyms', []),
+                "salary_range": profile.get('salary_expectations', 'Не указано'),
+                "company_types": profile.get('company_types', []),
+                "industries": profile.get('industries', []),
+                "key_competencies": profile.get('competencies', []),
+                "superpowers_map": profile.get('superpowers', {}),
+                "additional_constraints": profile.get('constraints', ''),
+                "linkedin_profile": profile.get('linkedin_url', ''),
+                "funnel_type": profile.get('preferred_funnel_type', 'active')
             },
             "reflection_history": reflection_history,
             "funnel_snapshot": funnel_snapshot,
@@ -292,13 +297,22 @@ class CVRAutoAnalyzer:
         hypotheses = chatgpt_data["hypotheses"]
         funnel_snapshot = chatgpt_data["funnel_snapshot"]
 
-        prompt = f"""Привет! Ты HackOFFer AI-ментор по поиску работы. Проанализируй воронку кандидата и дай 10 персональных рекомендаций.
+        prompt = f"""Привет! Ты HackOFFer AI-ментор по поиску работы. Проанализируй воронку кандидата, его LinkedIn страницу и дай 10 персональных рекомендаций.
 
 ПРОФИЛЬ КАНДИДАТА:
 • Роль: {profile['role']}
+• Текущая локация: {profile['current_location']}
+• Локация поиска: {profile['target_location']}
 • Уровень: {profile['level']}
-• Локация: {profile['location']} → {profile['target_location']}
 • Срок поиска: {profile['deadline_weeks']} недель
+• Синонимы ролей: {', '.join(profile.get('role_synonyms', [])[:4]) if profile.get('role_synonyms') else 'Не указано'}
+• Диапазон ЗП: {profile['salary_range']}
+• Типы компаний: {', '.join(profile.get('company_types', [])) if profile.get('company_types') else 'Не указано'}
+• Индустрии: {', '.join(profile.get('industries', [])) if profile.get('industries') else 'Не указано'}
+• Ключевые компетенции: {', '.join(profile.get('key_competencies', [])) if profile.get('key_competencies') else 'Не указано'}
+• Карта суперсил: {str(profile.get('superpowers_map', {})) if profile.get('superpowers_map') else 'Не указано'}
+• Доп. ограничения: {profile.get('additional_constraints', 'Нет')}
+• LinkedIn: {profile.get('linkedin_profile', 'Не указан')}
 • Тип воронки: {"Активный поиск (подает заявки)" if profile['funnel_type'] == 'active' else "Пассивный поиск (находят его)"}
 
 ПРОБЛЕМНЫЕ ОБЛАСТИ (CVR < 20% при знаменателе ≥5):"""
@@ -319,7 +333,7 @@ class CVRAutoAnalyzer:
 
 ЗАДАЧА:
 1. Проанализируй проблемные CVR кандидата
-2. Выбери наиболее релевантные гипотезы для его ситуации
+2. Выбери наиболее релевантные гипотезы для его ситуации  
 3. Сгенерируй 10 персональных рекомендаций с учетом его профиля
 
 ФОРМАТ ОТВЕТА:
