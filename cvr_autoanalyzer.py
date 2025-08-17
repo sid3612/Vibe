@@ -206,18 +206,12 @@ class CVRAutoAnalyzer:
         profile = get_profile(user_id)
         reflection_history = get_reflection_history(user_id, 14)  # Рефлексии за последние 2 недели
 
-        # Собираем уникальные гипотезы с дедупликацией по ID
+        # Собираем все гипотезы без дедупликации (каждая гипотеза уникальна)
         all_hypotheses = []
-        seen_ids = set()
 
         for problem in problems:
             for hypothesis in problem.get('hypotheses', []):
-                h_id = hypothesis.get('hid', hypothesis.get('id', ''))
-                if h_id and h_id not in seen_ids:
-                    all_hypotheses.append(hypothesis)
-                    seen_ids.add(h_id)
-                elif not h_id:  # Если нет ID, добавляем anyway
-                    all_hypotheses.append(hypothesis)
+                all_hypotheses.append(hypothesis)
 
         # Формируем срез воронки
         funnel_snapshot = self._create_funnel_snapshot(problems)
@@ -318,10 +312,14 @@ class CVRAutoAnalyzer:
 
         prompt += f"\n\nДОСТУПНЫЕ ГИПОТЕЗЫ ДЛЯ РЕШЕНИЯ:"
 
-        # Ограничиваем до 50 гипотез для промпта
+        # Выбираем 50 случайных гипотез для промпта
         max_hypotheses = 50
-        limited_hypotheses = hypotheses[:max_hypotheses]
-        print(f"🔍 Отправляем в промпт {len(limited_hypotheses)} гипотез из {len(hypotheses)} найденных")
+        if len(hypotheses) > max_hypotheses:
+            import random
+            limited_hypotheses = random.sample(hypotheses, max_hypotheses)
+        else:
+            limited_hypotheses = hypotheses
+        print(f"🔍 Отправляем в промпт {len(limited_hypotheses)} случайных гипотез из {len(hypotheses)} найденных")
 
         for i, hypothesis in enumerate(limited_hypotheses, 1):
             # Получаем полное содержимое гипотезы из столбца 'name' Excel файла
