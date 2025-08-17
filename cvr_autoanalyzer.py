@@ -316,19 +316,18 @@ class CVRAutoAnalyzer:
         print(f"🔍 Отправляем в промпт {len(hypotheses)} гипотез")
 
         for i, hypothesis in enumerate(hypotheses, 1):
-            # Получаем данные из Excel структуры
-            h_id = hypothesis.get('id', f'H{i}')
-            # Используем полное содержимое гипотезы из столбца 'name'
-            h_content = hypothesis.get('description', hypothesis.get('actions', 'Нет описания'))
+            # Получаем полное содержимое гипотезы из столбца 'name' Excel файла
+            h_content = hypothesis.get('name', hypothesis.get('description', hypothesis.get('actions', 'Нет описания')))
+            h_id = hypothesis.get('hid', f'H{i}')
             
-            # Отправляем полное содержимое гипотезы с отладочной информацией
+            # Отправляем полное содержимое гипотезы
             print(f"🔍 Гипотеза {h_id}: {h_content[:100]}...")
             prompt += f"\n\n{i}. {h_content}"
             
             # Если содержимое очень длинное, обрезаем для читаемости промпта
             if len(h_content) > 800:
-                h_content_trimmed = h_content[:800]
-                prompt = prompt[:-len(h_content)] + h_content_trimmed + "..."
+                h_content_trimmed = h_content[:800] + "..."
+                prompt = prompt[:-len(h_content)] + h_content_trimmed
 
         prompt += f"""
 
