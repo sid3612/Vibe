@@ -11,7 +11,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from config import BOT_TOKEN
-from db import init_db, add_user, get_user_funnels, set_active_funnel, get_user_channels, add_channel, remove_channel, add_week_data, get_week_data, update_week_field, get_user_history, set_user_reminders, save_profile, get_profile, delete_profile
+from db import init_db, add_user, get_user_funnels, set_active_funnel, get_user_channels, add_channel, remove_channel, add_week_data, get_week_data, update_week_field, get_user_history, set_user_reminders, save_profile, get_profile, delete_profile, record_payment_click, get_payment_statistics
 from metrics import calculate_cvr_metrics, format_metrics_table, format_history_table
 from export import generate_csv_export
 from faq import get_faq_text
@@ -74,6 +74,7 @@ HackOFFer — ваш AI-ментор по поиску работы: счита�
         [InlineKeyboardButton(text="📝 Заполнить профиль", callback_data="create_profile")],
         [InlineKeyboardButton(text="📊 Внести данные за неделю", callback_data="data_entry")],
         [InlineKeyboardButton(text="🎯 AI-анализ конверсии", callback_data="cvr_analysis")],
+        [InlineKeyboardButton(text="💳 Оплатить доступ", callback_data="payment_click")],
         [InlineKeyboardButton(text="📚 Главное меню", callback_data="main_menu")],
         [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
     ])
@@ -311,6 +312,7 @@ async def show_main_menu(user_id: int, message_or_query):
         [InlineKeyboardButton(text="📈 Показать историю", callback_data="show_history")],
         [InlineKeyboardButton(text="💾 Экспорт в CSV", callback_data="export_csv")],
         [InlineKeyboardButton(text="⏰ Настройки напоминаний", callback_data="setup_reminders")],
+        [InlineKeyboardButton(text="💳 Оплатить доступ", callback_data="payment_click")],
         [InlineKeyboardButton(text="❓ FAQ", callback_data="show_faq")]
     ])
     
@@ -361,6 +363,28 @@ async def process_callback(query: CallbackQuery, state: FSMContext):
     
     elif data == "cvr_analysis":
         await handle_cvr_analysis_button(query, user_id)
+        
+    elif data == "payment_click":
+        # Записываем клик в статистику
+        record_payment_click(user_id)
+        
+        # Получаем статистику для отображения
+        stats = get_payment_statistics()
+        
+        # Показываем сообщение о бета-версии
+        await query.message.edit_text(
+            "🎉 **Временная бесплатная бета-версия**\n\n"
+            "HackOFFer пока работает в режиме бесплатного тестирования! "
+            "Все функции доступны без ограничений.\n\n"
+            "🚀 Мы собираем обратную связь от пользователей для улучшения продукта.\n\n"
+            "💡 Если у вас есть предложения или вопросы — пишите через /feedback\n\n"
+            f"📊 Интерес к продукту: {stats['unique_users']} пользователей",
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🏠 Главное меню", callback_data="main_menu")]
+            ])
+        )
+        await query.answer("Спасибо за интерес к продукту!")
         
     elif data == "change_funnel":
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
